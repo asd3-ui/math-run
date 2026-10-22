@@ -1,0 +1,45 @@
+{
+  "name": "سباق الرياضيات 3D",
+  "short_name": "سباق الرياضيات",
+  "description": "لعبة تعليمية ثلاثية الأبعاد لتعلم الرياضيات — اركض واختر الإجابة الصحيحة",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0a0a15",
+  "theme_color": "#7c5cff",
+  "lang": "ar",
+  "dir": "rtl",
+  "categories": ["education", "games"],
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
