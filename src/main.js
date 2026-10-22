@@ -5,6 +5,16 @@ import { Screens } from './ui/Screens.js';
 import { AudioSystem } from './systems/Audio.js';
 import { loadSave } from './systems/Progress.js';
 
+// ============ تسجيل Service Worker للعمل بدون إنترنت ============
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('/sw.js', { scope: '/' })
+      .catch(() => { /* تجاهل الأخطاء */ });
+  });
+}
+
+// ============ تهيئة اللعبة ============
 const save = loadSave();
 const audio = new AudioSystem();
 const hud = new HUD();
@@ -21,7 +31,8 @@ screens.handlers.buy = (type) => game.buyPowerup(type);
 screens.handlers.endless = () => game.startEndless();
 screens.handlers.resume = () => game.togglePause();
 
-// تفعيل الصوت عند أول تفاعل
+// تفعيل الصوت عند أول تفاعل (متطلب المتصفحات)
 const unlockAudio = () => { audio.resume(); };
-document.addEventListener('click', unlockAudio, { once: false });
-document.addEventListener('touchstart', unlockAudio, { once: false });
+document.addEventListener('click', unlockAudio, { passive: true });
+document.addEventListener('touchstart', unlockAudio, { passive: true });
+document.addEventListener('keydown', unlockAudio, { passive: true });
