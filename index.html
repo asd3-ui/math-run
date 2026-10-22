@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0a0a15" />
+  <meta name="description" content="لعبة سباق الرياضيات ثلاثية الأبعاد — اركض واختر الإجابة الصحيحة" />
+  <title>سباق الرياضيات 3D</title>
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <link rel="apple-touch-icon" href="/icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/styles.css" />
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <!-- ============ HUD ============ -->
+  <div id="hud" class="hidden">
+    <div class="hud-top">
+      <div id="question" class="question">—</div>
+      <div id="answers" class="answers"></div>
+    </div>
+    <div class="hud-bottom">
+      <div class="stat"><span id="coins">0</span> 🪙</div>
+      <div class="stat"><span id="hearts">❤️❤️❤️</span></div>
+      <div class="stat">⚡ <span id="speed">0</span></div>
+      <div class="stat">🎯 <span id="progress">0/0</span></div>
+    </div>
+    <div class="powerups">
+      <button class="powerup-btn" data-type="freeze" title="تجميد">❄️<span class="count">0</span></button>
+      <button class="powerup-btn" data-type="remove" title="حذف إجابة">✂️<span class="count">0</span></button>
+      <button class="powerup-btn" data-type="shield" title="درع">🛡️<span class="count">0</span></button>
+    </div>
+    <button id="btn-pause" class="pause-btn">⏸</button>
+    <div id="combo-badge" class="combo-badge hidden">🔥 ×<span id="combo-count">0</span></div>
+  </div>
+
+  <!-- ============ Main menu ============ -->
+  <div id="menu" class="screen">
+    <div class="panel">
+      <div class="logo">🏃‍♂️</div>
+      <h1>سباق الرياضيات 3D</h1>
+      <p class="subtitle">اركض على الطريق واختر المسار الذي يحمل الإجابة الصحيحة!</p>
+      <button id="btn-play" class="btn primary">▶ ابدأ اللعب</button>
+      <button id="btn-endless" class="btn">♾️ وضع لا نهائي</button>
+      <button id="btn-levels" class="btn">🗺️ المراحل</button>
+      <button id="btn-shop" class="btn">🛒 المتجر</button>
+      <button id="btn-characters" class="btn">👕 الشخصيات</button>
+      <div class="menu-footer">
+        <span>🪙 <span id="menu-coins">0</span></span>
+        <span id="menu-level-badge">🏆 المستوى <span id="menu-level">1</span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Level select ============ -->
+  <div id="level-select" class="screen hidden">
+    <div class="panel wide">
+      <h2>اختر المرحلة</h2>
+      <div id="levels-grid" class="levels-grid"></div>
+      <button class="btn back" data-back="menu">رجوع</button>
+    </div>
+  </div>
+
+  <!-- ============ Shop ============ -->
+  <div id="shop" class="screen hidden">
+    <div class="panel">
+      <h2>🛒 المتجر</h2>
+      <div class="shop-grid">
+        <div class="shop-item" data-buy="freeze">
+          <div class="icon">❄️</div>
+          <div class="info"><div class="name">تجميد الوقت</div><div class="desc">يُبطئ اللعبة 4 ثوان</div></div>
+          <div class="price">50 🪙</div>
+        </div>
+        <div class="shop-item" data-buy="remove">
+          <div class="icon">✂️</div>
+          <div class="info"><div class="name">حذف إجابة</div><div class="desc">يحذف إجابة خاطئة واحدة</div></div>
+          <div class="price">40 🪙</div>
+        </div>
+        <div class="shop-item" data-buy="shield">
+          <div class="icon">🛡️</div>
+          <div class="info"><div class="name">درع واقٍ</div><div class="desc">يحميك من خطأ واحد</div></div>
+          <div class="price">70 🪙</div>
+        </div>
+        <div class="shop-item" data-buy="heart">
+          <div class="icon">❤️</div>
+          <div class="info"><div class="name">قلب إضافي</div><div class="desc">يستعيد قلباً في اللعب التالي</div></div>
+          <div class="price">60 🪙</div>
+        </div>
+      </div>
+      <div class="menu-footer"><span>🪙 <span id="shop-coins">0</span></span></div>
+      <button class="btn back" data-back="menu">رجوع</button>
+    </div>
+  </div>
+
+  <!-- ============ Characters ============ -->
+  <div id="characters" class="screen hidden">
+    <div class="panel wide">
+      <h2>👕 اختر شخصيتك</h2>
+      <div id="characters-grid" class="characters-grid"></div>
+      <button class="btn back" data-back="menu">رجوع</button>
+    </div>
+  </div>
+
+  <!-- ============ Pause ============ -->
+  <div id="pause" class="screen hidden">
+    <div class="panel">
+      <h2>⏸ إيقاف مؤقت</h2>
+      <button id="btn-resume" class="btn primary">استئناف</button>
+      <button class="btn back" data-back="menu">القائمة الرئيسية</button>
+    </div>
+  </div>
+
+  <!-- ============ Game over ============ -->
+  <div id="gameover" class="screen hidden">
+    <div class="panel">
+      <h2>💥 انتهت اللعبة!</h2>
+      <div class="result-row"><span>العملات المجمّعة</span><strong id="go-coins">0</strong></div>
+      <div class="result-row"><span>الإجابات الصحيحة</span><strong id="go-correct">0</strong></div>
+      <div class="result-row"><span>أفضل سلسلة</span><strong id="go-combo">0</strong></div>
+      <button id="btn-retry" class="btn primary">🔄 المحاولة مجدداً</button>
+      <button class="btn back" data-back="menu">القائمة</button>
+    </div>
+  </div>
+
+  <!-- ============ Level complete ============ -->
+  <div id="level-complete" class="screen hidden">
+    <div class="panel">
+      <div class="trophy">🏆</div>
+      <h2>أكملت المرحلة!</h2>
+      <div class="result-row"><span>العملات المجمّعة</span><strong id="lc-coins">0</strong></div>
+      <div class="result-row"><span>الإجابات الصحيحة</span><strong id="lc-correct">0</strong></div>
+      <button id="btn-next" class="btn primary">▶ المرحلة التالية</button>
+      <button class="btn back" data-back="menu">القائمة</button>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
