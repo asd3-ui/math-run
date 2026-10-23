@@ -178,19 +178,20 @@ export class Environment {
     this.addSky(worldData);
 
     const id = worldData.id || 1;
+    const lowPower = Boolean(this.scene.userData.lowPower);
     if (id === 1) {
       this.addMountainRange(-1, 0x63826f, -300, 26, 1);
       this.addMountainRange(1, 0x3e665b, -390, 38, 4);
       this.addMountainRange(1, 0x9bb8a5, -245, 15, 7);
-      for (let i = 0; i < 7; i++) this.addCloud(-48 + Math.random() * 96, 24 + Math.random() * 22, -130 - Math.random() * 260, 1.5 + Math.random() * 2.4, 0xf5fbff);
+      for (let i = 0; i < (lowPower ? 4 : 7); i++) this.addCloud(-48 + Math.random() * 96, 24 + Math.random() * 22, -130 - Math.random() * 260, 1.5 + Math.random() * 2.4, 0xf5fbff);
     } else if (id === 2) {
       this.addMountainRange(-1, 0xc28e60, -280, 25, 3);
       this.addMountainRange(1, 0xe1b97f, -390, 42, 8);
       this.addMountainRange(1, 0xd4a06e, -225, 14, 2);
-      for (let i = 0; i < 5; i++) this.addCloud(-44 + Math.random() * 88, 28 + Math.random() * 15, -160 - Math.random() * 230, 1.1 + Math.random() * 2, 0xffedcf);
+      for (let i = 0; i < (lowPower ? 3 : 5); i++) this.addCloud(-44 + Math.random() * 88, 28 + Math.random() * 15, -160 - Math.random() * 230, 1.1 + Math.random() * 2, 0xffedcf);
     } else if (id === 3) {
       const buildingColors = [0x182544, 0x202b4a, 0x30305c, 0x1b3b52];
-      for (let i = 0; i < 34; i++) {
+      for (let i = 0; i < (lowPower ? 18 : 34); i++) {
         const side = i % 2 ? 1 : -1;
         const height = 12 + Math.random() * 42;
         const width = 3 + Math.random() * 7;
@@ -216,7 +217,7 @@ export class Environment {
       ring.rotation.set(1.05, 0.2, -0.28);
       this.backdrop.add(ring);
       ring.userData.parallax = 0.01;
-      for (let i = 0; i < 15; i++) {
+      for (let i = 0; i < (lowPower ? 8 : 15); i++) {
         const rock = this.addMesh(this.backdrop, this.sharedGeometries.rock, this.sharedMaterials.rock,
           (Math.random() - 0.5) * 100, 8 + Math.random() * 42, -90 - Math.random() * 350,
           1.4 + Math.random() * 4, 1 + Math.random() * 3, 1.5 + Math.random() * 4);
@@ -229,7 +230,7 @@ export class Environment {
       const glow = new THREE.PointLight(0xff4b14, 65, 220, 2);
       glow.position.set(0, 20, -180);
       this.backdrop.add(glow);
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < (lowPower ? 6 : 10); i++) {
         const volcano = this.addMesh(this.backdrop, this.sharedGeometries.lava, this.sharedMaterials.lava,
           (Math.random() - 0.5) * 95, 8 + Math.random() * 12, -110 - Math.random() * 280,
           3 + Math.random() * 5, 4 + Math.random() * 8, 3 + Math.random() * 5);
