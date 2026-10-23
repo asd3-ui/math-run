@@ -9,7 +9,7 @@ import { loadSave } from './systems/Progress.js';
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
     // Resolve the worker relative to the deployed app so project-site URLs work too.
-    const workerUrl = new URL('../sw.js', import.meta.url);
+    const workerUrl = new URL('sw.js', window.location.href);
     navigator.serviceWorker
       .register(workerUrl)
       .catch(() => { /* تجاهل الأخطاء */ });
