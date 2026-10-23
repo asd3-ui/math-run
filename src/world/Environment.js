@@ -83,10 +83,12 @@ export class Environment {
 
   disposeGroup(group) {
     group.traverse((object) => {
-      if (object.geometry) object.geometry.dispose();
+      if (object.geometry && !Object.values(this.sharedGeometries).includes(object.geometry)) {
+        object.geometry.dispose();
+      }
       const materials = Array.isArray(object.material) ? object.material : [object.material];
       for (const material of materials) {
-        if (material) {
+        if (material && !Object.values(this.sharedMaterials).includes(material)) {
           if (material.map) material.map.dispose();
           material.dispose();
         }
