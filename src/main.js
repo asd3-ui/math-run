@@ -8,8 +8,10 @@ import { loadSave } from './systems/Progress.js';
 // ============ تسجيل Service Worker للعمل بدون إنترنت ============
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
+    // Resolve the worker relative to the deployed app so project-site URLs work too.
+    const workerUrl = new URL('../sw.js', import.meta.url);
     navigator.serviceWorker
-      .register('/sw.js', { scope: '/' })
+      .register(workerUrl)
       .catch(() => { /* تجاهل الأخطاء */ });
   });
 }
