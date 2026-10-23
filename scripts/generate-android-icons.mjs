@@ -24,6 +24,14 @@ for (const [folder, size] of densities) {
 }
 
 // Android 8+ uses adaptive icons. Keep the same repository artwork as foreground.
+const valuesDir = join(root, 'values');
+mkdirSync(valuesDir, { recursive: true });
+writeFileSync(join(valuesDir, 'ic_launcher_background.xml'), `<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">#151a36</color>
+</resources>
+`);
+
 const adaptiveDir = join(root, 'mipmap-anydpi-v26');
 mkdirSync(adaptiveDir, { recursive: true });
 const adaptive = `<?xml version="1.0" encoding="utf-8"?>
