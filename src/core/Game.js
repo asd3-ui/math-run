@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { Player } from '../world/Player.js';
 import { Track } from '../world/Track.js';
 import { Gate } from '../world/Gate.js';
-import { Obstacle } from '../world/Obstacle.js'; // استيراد العائق
+import { Obstacle } from '../world/Obstacle.js';
 import { Environment } from '../world/Environment.js';
 import { Particles } from '../world/Particles.js';
 import { QuestionSystem } from '../systems/QuestionSystem.js';
@@ -19,15 +19,16 @@ export class Game {
     this.save = save;
 
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 600);
+    this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 800);
     this.camera.position.set(0, 7.5, 13);
     this.camera.lookAt(0, 1.5, -10);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.shadowMap.enabled = true; // تفعيل الظلال
+    this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     document.getElementById('canvas-container').appendChild(this.renderer.domElement);
 
     this.env = new Environment(this.scene);
@@ -39,7 +40,7 @@ export class Game {
 
     this.state = 'menu';
     this.gate = null;
-    this.obstacle = null; // متغير لحفظ العائق الحالي
+    this.obstacle = null;
     this.clock = new THREE.Clock();
     this.levelIndex = 0;
     this.levelConfig = LevelConfigs[0];
@@ -49,7 +50,6 @@ export class Game {
 
     this.hud.setOnUsePowerup((t) => this.usePowerup(t));
     this.hud.setOnPause(() => this.togglePause());
-
     this.screens.handlers.character = (c) => this.selectCharacter(c);
     this.screens.handlers.back = (target) => this.backTo(target);
 
@@ -66,7 +66,6 @@ export class Game {
   bindEvents() {
     window.addEventListener('resize', () => this.onResize());
     window.addEventListener('keydown', (e) => this.onKey(e));
-
     let startX = 0, moved = false;
     const el = this.renderer.domElement;
     el.addEventListener('touchstart', (e) => { this.audio.resume(); startX = e.touches[0].clientX; moved = false; }, { passive: true });
@@ -81,9 +80,9 @@ export class Game {
 
   onKey(e) {
     if (this.state !== 'playing') return;
-    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') this.player.moveLane(-1);
-    else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') this.player.moveLane(1);
-    else if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') this.togglePause();
+    if (e.key === 'ArrowLeft' || e.key === 'a') this.player.moveLane(-1);
+    else if (e.key === 'ArrowRight' || e.key === 'd') this.player.moveLane(1);
+    else if (e.key === 'Escape' || e.key === 'p') this.togglePause();
   }
 
   onResize() {
@@ -105,26 +104,23 @@ export class Game {
   }
 
   selectCharacter(c) {
-    const owned = this.save.ownedCharacters.includes(c.id);
-    if (owned) {
+    if (this.save.ownedCharacters.includes(c.id)) {
       this.save.selectedCharacter = c.id;
       this.applySelectedCharacter();
       writeSave(this.save);
       this.audio.click();
       this.screens.refreshCharacters();
+    } else if (this.save.coins >= c.price) {
+      this.save.coins -= c.price;
+      this.save.ownedCharacters.push(c.id);
+      this.save.selectedCharacter = c.id;
+      this.applySelectedCharacter();
+      writeSave(this.save);
+      this.audio.powerup();
+      this.screens.refreshCoins();
+      this.screens.refreshCharacters();
     } else {
-      if (this.save.coins >= c.price) {
-        this.save.coins -= c.price;
-        this.save.ownedCharacters.push(c.id);
-        this.save.selectedCharacter = c.id;
-        this.applySelectedCharacter();
-        writeSave(this.save);
-        this.audio.powerup();
-        this.screens.refreshCoins();
-        this.screens.refreshCharacters();
-      } else {
-        this.audio.beep(180, 0.2, 'sawtooth');
-      }
+      this.audio.beep(180, 0.2, 'sawtooth');
     }
   }
 
@@ -145,7 +141,6 @@ export class Game {
   }
 
   beginRun(config) {
-    // ربط البيئة الجديدة
     this.env.setEnvironment(config.worldData);
     this.track.setGroundColor(config.worldData.ground);
 
@@ -172,7 +167,9 @@ export class Game {
     this.hud.hideCombo();
     this.hud.show();
     this.screens.show(null);
-    this.audio.startMusic();
+    
+    // بدء الموسيقى
+    this.audio.startMusic(config.worldData.id);
     this.spawnRound();
   }
 
@@ -188,21 +185,17 @@ export class Game {
 
     this.clearLevelObjects();
 
-    // 1. إنشاء البوابات الثلاث
+    // 1. إنشاء البوابات الثلاث (جميعها تظهر)
     this.gate = new Gate(this.scene, q.answers, q.correctIndex);
     this.gate.q = q;
 
-    // 2. اختيار مسار عشوائي (غير المسار الصحيح) ووضع عائق فيه
+    // 2. اختيار مسار عشوائي ووضع عائق فيه (في المنتصف وقبل البوابة)
     const wrongLanes = [0, 1, 2].filter(i => i !== q.correctIndex);
     const obstacleLane = wrongLanes[Math.floor(Math.random() * wrongLanes.length)];
-    
-    // إخفاء البوابة في مسار العائق
-    this.gate.panels[obstacleLane].visible = false;
-    this.hud.disableAnswer(obstacleLane);
-    
-    // إنشاء العائق
     this.obstacle = new Obstacle(this.scene, obstacleLane, this.levelConfig.worldData.obstacleType);
 
+    // لا نخفي البوابة! نتركها تظهر ليعرف اللاعب أن هذا المسار مسدود
+    // لكنه سيصطدم بالعائق إذا اختاره
     if (this.pendingRemove) {
       this.applyRemoveToGate();
       this.pendingRemove = false;
@@ -210,8 +203,7 @@ export class Game {
   }
 
   usePowerup(type) {
-    if (this.state !== 'playing') return;
-    if ((this.save.powerups[type] || 0) <= 0) return;
+    if (this.state !== 'playing' || (this.save.powerups[type] || 0) <= 0) return;
 
     if (type === 'freeze') {
       if (this.powerups.isFrozen()) return;
@@ -238,6 +230,7 @@ export class Game {
 
   applyRemoveToGate() {
     if (!this.gate) return;
+    // حذف الإجابة الخاطئة
     const visibleLanes = [0, 1, 2].filter(i => i !== this.gate.correctIndex && this.gate.panels[i].visible);
     if (visibleLanes.length > 0) {
         const pick = visibleLanes[Math.floor(Math.random() * visibleLanes.length)];
@@ -249,8 +242,7 @@ export class Game {
   buyPowerup(type) {
     const prices = { freeze: 50, remove: 40, shield: 70, heart: 60 };
     const price = prices[type];
-    if (!price) return;
-    if (this.save.coins < price) { this.audio.beep(180, 0.15, 'sawtooth'); return; }
+    if (!price || this.save.coins < price) { this.audio.beep(180, 0.15, 'sawtooth'); return; }
     this.save.coins -= price;
     this.save.powerups[type] = (this.save.powerups[type] || 0) + 1;
     writeSave(this.save);
@@ -266,7 +258,7 @@ export class Game {
     } else if (this.state === 'paused') {
       this.state = 'playing';
       this.screens.show(null);
-      this.audio.startMusic();
+      this.audio.startMusic(this.levelConfig.worldData.id);
     }
   }
 
@@ -276,6 +268,9 @@ export class Game {
 
     this.speed = Math.min(this.levelConfig.speed + 16, this.speed + dt * 0.35);
 
+    // تغيير سرعة الموسيقى مع تسارع اللعبة
+    this.audio.setMusicTempo(this.speed);
+
     this.track.update(dt, effectiveSpeed);
     this.env.update(dt, effectiveSpeed);
     this.player.update(dt, effectiveSpeed, true);
@@ -283,10 +278,7 @@ export class Game {
 
     if (this.gate) {
       this.gate.group.position.z += effectiveSpeed * dt;
-      
-      if (this.obstacle) {
-          this.obstacle.group.position.z += effectiveSpeed * dt;
-      }
+      if (this.obstacle) this.obstacle.group.position.z += effectiveSpeed * dt;
 
       if (!this.gate.checked && this.gate.group.position.z >= 0) {
         this.gate.checked = true;
@@ -308,7 +300,7 @@ export class Game {
     const gate = this.gate;
     if (!gate) return;
 
-    // إذا اصطدم بالعائق
+    // هل اللاعب في مسار العائق؟
     const hitObstacle = this.obstacle && this.player.lane === this.obstacle.lane;
 
     if (this.player.lane === gate.correctIndex && !hitObstacle) {
@@ -329,9 +321,6 @@ export class Game {
       this.audio.correct();
       this.particles.burst(this.player.group.position.clone().add(new THREE.Vector3(0, 1.5, -1)), 0xffd700, 25);
 
-      gate.panels[gate.correctIndex].visible = false;
-      writeSave(this.save);
-
       if (!this.isEndless && this.correctCount >= this.targetCount) {
         this.finishLevel();
         return;
@@ -347,10 +336,7 @@ export class Game {
       this.particles.burst(this.player.group.position.clone().add(new THREE.Vector3(0, 1, -1)), 0xff4757, 15);
       
       if (hitObstacle) {
-          this.audio.bump();
-      } else {
-          gate.panels.forEach(p => p.material.color.set(0xff2b2b));
-          gate.highlightCorrect();
+          this.audio.bump(); // صوت اصطدام
       }
 
       if (this.powerups.shieldActive) {
@@ -398,7 +384,6 @@ export class Game {
   animate() {
     requestAnimationFrame(this.animate);
     const dt = Math.min(this.clock.getDelta(), 0.05);
-
     if (this.state === 'playing') {
       this.updatePlaying(dt);
     } else {
