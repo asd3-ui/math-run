@@ -5,7 +5,13 @@ function randInt(min, max) {
 export class QuestionSystem {
   next(config) {
     const { ops, max } = config;
-    const op = ops[Math.floor(Math.random() * ops.length)];
+    let op = ops[Math.floor(Math.random() * ops.length)];
+    
+    // إذا كان العالم صعباً، لا نعطي جمعاً سهلاً جداً
+    if (config.difficulty > 3 && op === '+' && Math.random() < 0.5) {
+        op = '×';
+    }
+
     let a, b, answer, text;
 
     if (op === '+') {
@@ -16,13 +22,18 @@ export class QuestionSystem {
       b = randInt(1, a); answer = a - b;
       text = `${a} − ${b} = ؟`;
     } else if (op === '×') {
-      a = randInt(2, Math.min(12, max)); b = randInt(2, Math.min(12, max)); answer = a * b;
+      a = randInt(2, Math.min(12, Math.ceil(max / 2))); 
+      b = randInt(2, Math.min(12, Math.ceil(max / 2))); 
+      answer = a * b;
       text = `${a} × ${b} = ؟`;
-    } else {
-      b = randInt(2, Math.min(12, max));
-      answer = randInt(2, Math.min(12, max));
+    } else if (op === '÷') {
+      b = randInt(2, Math.min(12, Math.ceil(max / 2)));
+      answer = randInt(2, Math.min(12, Math.ceil(max / 2)));
       a = b * answer;
       text = `${a} ÷ ${b} = ؟`;
+    } else if (op === '^') {
+      a = randInt(2, 5); b = randInt(2, 3); answer = Math.pow(a, b);
+      text = `${a} ^ ${b} = ؟`;
     }
 
     const distractors = this.makeDistractors(answer);
@@ -36,7 +47,8 @@ export class QuestionSystem {
     const set = new Set();
     let guard = 0;
     while (set.size < 2 && guard++ < 80) {
-      const range = Math.max(3, Math.floor(Math.abs(answer) * 0.4) + 2);
+      // ذكاء في توليد الأرقام الخاطئة: قريبة من الإجابة
+      const range = Math.max(3, Math.floor(Math.abs(answer) * 0.3) + 2);
       const delta = randInt(1, range) * (Math.random() < 0.5 ? -1 : 1);
       const d = answer + delta;
       if (d !== answer && d >= 0) set.add(d);
