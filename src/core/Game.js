@@ -19,11 +19,12 @@ export class Game {
 
     // Three.js
     this.scene = new THREE.Scene();
+    // تعديل الكاميرا لتناسب الوضع الطولي
     this.camera = new THREE.PerspectiveCamera(
-      72, window.innerWidth / window.innerHeight, 0.1, 600
+      75, window.innerWidth / window.innerHeight, 0.1, 600
     );
-    this.camera.position.set(0, 5.5, 9.5);
-    this.camera.lookAt(0, 1.2, -6);
+    this.camera.position.set(0, 7.5, 13); // ابتعاد للأعلى والخلف
+    this.camera.lookAt(0, 1.5, -10);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -172,7 +173,8 @@ export class Game {
   }
 
   beginRun(config) {
-    this.env.setSky(config.sky);
+    // استدعاء البيئة الجديدة
+    this.env.setEnvironment(config.sky, config.ground || 0x2b2b40, config.fog || config.sky, config.worldId || 1);
     this.track.setGroundColor(config.ground || 0x2b2b40);
 
     this.state = 'playing';
