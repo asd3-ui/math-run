@@ -13,7 +13,6 @@ const frameMaterials = PANEL_COLORS.map(color => new THREE.MeshStandardMaterial(
   color: new THREE.Color(color), metalness: 0.68, roughness: 0.28,
   emissive: new THREE.Color(color), emissiveIntensity: 0.7
 }));
-const panelMaterials = [];
 const baseMaterials = PANEL_COLORS.map(color => new THREE.MeshStandardMaterial({
   color: 0x1a1a2e, metalness: 0.5, roughness: 0.34,
   emissive: new THREE.Color(color), emissiveIntensity: 0.4
@@ -73,7 +72,6 @@ export class Gate {
         emissive: new THREE.Color(PANEL_COLORS[i]), emissiveIntensity: 0.35,
         side: THREE.DoubleSide
       });
-      panelMaterials.push(material);
       const laneX = (i - 1) * 3;
       const panel = new THREE.Mesh(FRAME_GEOMETRY.panel, material);
       panel.position.set(laneX, 2.4, 0);
