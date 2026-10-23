@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Player } from '../world/Player.js';
 import { Track } from '../world/Track.js';
 import { Gate } from '../world/Gate.js';
+import { Obstacle } from '../world/Obstacle.js'; // استيراد العائق
 import { Environment } from '../world/Environment.js';
 import { Particles } from '../world/Particles.js';
 import { QuestionSystem } from '../systems/QuestionSystem.js';
@@ -17,22 +18,18 @@ export class Game {
     this.audio = audio;
     this.save = save;
 
-    // Three.js
     this.scene = new THREE.Scene();
-    // تعديل الكاميرا لتناسب الوضع الطولي
-    this.camera = new THREE.PerspectiveCamera(
-      75, window.innerWidth / window.innerHeight, 0.1, 600
-    );
-    this.camera.position.set(0, 7.5, 13); // ابتعاد للأعلى والخلف
+    this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 600);
+    this.camera.position.set(0, 7.5, 13);
     this.camera.lookAt(0, 1.5, -10);
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.shadowMap.enabled = false;
+    this.renderer.shadowMap.enabled = true; // تفعيل الظلال
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     document.getElementById('canvas-container').appendChild(this.renderer.domElement);
 
-    // World
     this.env = new Environment(this.scene);
     this.track = new Track(this.scene);
     this.player = new Player(this.scene);
@@ -40,23 +37,13 @@ export class Game {
     this.questions = new QuestionSystem();
     this.powerups = new PowerUps();
 
-    // State
     this.state = 'menu';
     this.gate = null;
+    this.obstacle = null; // متغير لحفظ العائق الحالي
     this.clock = new THREE.Clock();
     this.levelIndex = 0;
     this.levelConfig = LevelConfigs[0];
-    this.speed = 16;
-    this.targetCount = 10;
-    this.correctCount = 0;
-    this.hearts = 3;
-    this.combo = 0;
-    this.bestCombo = 0;
-    this.sessionCoins = 0;
-    this.spawnCooldown = 0;
-    this.pendingRemove = false;
-    this.isEndless = false;
-
+    
     this.applySelectedCharacter();
     this.bindEvents();
 
@@ -73,36 +60,21 @@ export class Game {
   applySelectedCharacter() {
     const id = this.save.selectedCharacter || 'boy';
     const cfg = Characters.find(c => c.id === id) || Characters[0];
-    this.player.setCharacter({
-      bodyColor: cfg.bodyColor,
-      headColor: cfg.headColor
-    });
+    this.player.setCharacter({ bodyColor: cfg.bodyColor, headColor: cfg.headColor });
   }
 
   bindEvents() {
     window.addEventListener('resize', () => this.onResize());
     window.addEventListener('keydown', (e) => this.onKey(e));
 
-    let startX = 0, startY = 0, moved = false;
+    let startX = 0, moved = false;
     const el = this.renderer.domElement;
-
-    el.addEventListener('touchstart', (e) => {
-      this.audio.resume();
-      startX = e.touches[0].clientX;
-      startY = e.touches[0].clientY;
-      moved = false;
-    }, { passive: true });
-
+    el.addEventListener('touchstart', (e) => { this.audio.resume(); startX = e.touches[0].clientX; moved = false; }, { passive: true });
     el.addEventListener('touchmove', (e) => {
       if (moved) return;
       const dx = e.touches[0].clientX - startX;
-      const dy = e.touches[0].clientY - startY;
-      if (Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy)) {
-        this.player.moveLane(dx > 0 ? 1 : -1);
-        moved = true;
-      }
+      if (Math.abs(dx) > 30) { this.player.moveLane(dx > 0 ? 1 : -1); moved = true; }
     }, { passive: true });
-
     el.addEventListener('touchend', () => { moved = false; });
     el.addEventListener('mousedown', () => this.audio.resume());
   }
@@ -124,7 +96,7 @@ export class Game {
     this.audio.click();
     if (target === 'menu') {
       this.state = 'menu';
-      this.clearGate();
+      this.clearLevelObjects();
       this.hud.hide();
       this.audio.stopMusic();
       this.screens.show('menu');
@@ -173,9 +145,9 @@ export class Game {
   }
 
   beginRun(config) {
-    // استدعاء البيئة الجديدة
-    this.env.setEnvironment(config.sky, config.ground || 0x2b2b40, config.fog || config.sky, config.worldId || 1);
-    this.track.setGroundColor(config.ground || 0x2b2b40);
+    // ربط البيئة الجديدة
+    this.env.setEnvironment(config.worldData);
+    this.track.setGroundColor(config.worldData.ground);
 
     this.state = 'playing';
     this.speed = config.speed;
@@ -189,7 +161,7 @@ export class Game {
     this.pendingRemove = false;
     this.powerups.reset();
 
-    this.clearGate();
+    this.clearLevelObjects();
     this.player.setLane(1);
 
     this.hud.setCoins(this.save.coins);
@@ -199,11 +171,14 @@ export class Game {
     this.hud.setPowerups(this.save.powerups);
     this.hud.hideCombo();
     this.hud.show();
-
     this.screens.show(null);
     this.audio.startMusic();
-
     this.spawnRound();
+  }
+
+  clearLevelObjects() {
+    if (this.gate) { this.gate.dispose(); this.gate = null; }
+    if (this.obstacle) { this.obstacle.dispose(); this.obstacle = null; }
   }
 
   spawnRound() {
@@ -211,20 +186,26 @@ export class Game {
     this.hud.setQuestion(q.text);
     this.hud.setAnswers(q.answers);
 
-    this.clearGate();
+    this.clearLevelObjects();
+
+    // 1. إنشاء البوابات الثلاث
     this.gate = new Gate(this.scene, q.answers, q.correctIndex);
     this.gate.q = q;
+
+    // 2. اختيار مسار عشوائي (غير المسار الصحيح) ووضع عائق فيه
+    const wrongLanes = [0, 1, 2].filter(i => i !== q.correctIndex);
+    const obstacleLane = wrongLanes[Math.floor(Math.random() * wrongLanes.length)];
+    
+    // إخفاء البوابة في مسار العائق
+    this.gate.panels[obstacleLane].visible = false;
+    this.hud.disableAnswer(obstacleLane);
+    
+    // إنشاء العائق
+    this.obstacle = new Obstacle(this.scene, obstacleLane, this.levelConfig.worldData.obstacleType);
 
     if (this.pendingRemove) {
       this.applyRemoveToGate();
       this.pendingRemove = false;
-    }
-  }
-
-  clearGate() {
-    if (this.gate) {
-      this.gate.dispose();
-      this.gate = null;
     }
   }
 
@@ -250,7 +231,6 @@ export class Game {
       this.powerups.activate('shield');
       this.hud.setPowerupActive('shield', true);
     }
-
     this.hud.setPowerups(this.save.powerups);
     writeSave(this.save);
     this.audio.powerup();
@@ -258,20 +238,19 @@ export class Game {
 
   applyRemoveToGate() {
     if (!this.gate) return;
-    const wrongLanes = [0, 1, 2].filter(i => i !== this.gate.correctIndex);
-    const pick = wrongLanes[Math.floor(Math.random() * wrongLanes.length)];
-    this.gate.panels[pick].visible = false;
-    this.hud.disableAnswer(pick);
+    const visibleLanes = [0, 1, 2].filter(i => i !== this.gate.correctIndex && this.gate.panels[i].visible);
+    if (visibleLanes.length > 0) {
+        const pick = visibleLanes[Math.floor(Math.random() * visibleLanes.length)];
+        this.gate.panels[pick].visible = false;
+        this.hud.disableAnswer(pick);
+    }
   }
 
   buyPowerup(type) {
     const prices = { freeze: 50, remove: 40, shield: 70, heart: 60 };
     const price = prices[type];
     if (!price) return;
-    if (this.save.coins < price) {
-      this.audio.beep(180, 0.15, 'sawtooth');
-      return;
-    }
+    if (this.save.coins < price) { this.audio.beep(180, 0.15, 'sawtooth'); return; }
     this.save.coins -= price;
     this.save.powerups[type] = (this.save.powerups[type] || 0) + 1;
     writeSave(this.save);
@@ -304,12 +283,17 @@ export class Game {
 
     if (this.gate) {
       this.gate.group.position.z += effectiveSpeed * dt;
+      
+      if (this.obstacle) {
+          this.obstacle.group.position.z += effectiveSpeed * dt;
+      }
+
       if (!this.gate.checked && this.gate.group.position.z >= 0) {
         this.gate.checked = true;
         this.resolveGate();
       }
       if (this.gate && this.gate.group.position.z > 20) {
-        this.clearGate();
+        this.clearLevelObjects();
         this.spawnCooldown = 0.4;
       }
     } else if (this.spawnCooldown > 0) {
@@ -324,10 +308,13 @@ export class Game {
     const gate = this.gate;
     if (!gate) return;
 
-    if (this.player.lane === gate.correctIndex) {
+    // إذا اصطدم بالعائق
+    const hitObstacle = this.obstacle && this.player.lane === this.obstacle.lane;
+
+    if (this.player.lane === gate.correctIndex && !hitObstacle) {
+      // إجابة صحيحة
       this.combo++;
       if (this.combo > this.bestCombo) this.bestCombo = this.combo;
-
       const gain = 10 + this.combo * 5;
       this.sessionCoins += gain;
       this.save.coins += gain;
@@ -349,18 +336,22 @@ export class Game {
         this.finishLevel();
         return;
       }
-
-      const g = this.gate;
-      setTimeout(() => { if (this.gate === g) this.clearGate(); }, 160);
+      setTimeout(() => { this.clearLevelObjects(); }, 160);
       this.spawnCooldown = 1.0;
     } else {
+      // إجابة خاطئة أو اصطدام بعائق
       this.combo = 0;
       this.hud.hideCombo();
       this.hud.flashWrong();
       this.audio.wrong();
       this.particles.burst(this.player.group.position.clone().add(new THREE.Vector3(0, 1, -1)), 0xff4757, 15);
-      gate.panels.forEach(p => p.material.color.set(0xff2b2b));
-      gate.highlightCorrect();
+      
+      if (hitObstacle) {
+          this.audio.bump();
+      } else {
+          gate.panels.forEach(p => p.material.color.set(0xff2b2b));
+          gate.highlightCorrect();
+      }
 
       if (this.powerups.shieldActive) {
         this.powerups.shieldActive = false;
@@ -374,15 +365,8 @@ export class Game {
         }
       }
 
-      const g = this.gate;
       setTimeout(() => {
-        if (this.gate !== g) return;
-        g.highlightCorrect();
-      }, 100);
-
-      setTimeout(() => {
-        if (this.gate === g) this.clearGate();
-        if (this.state === 'playing') this.spawnCooldown = 1.0;
+        if (this.state === 'playing') { this.clearLevelObjects(); this.spawnCooldown = 1.0; }
       }, 1000);
     }
   }
@@ -391,15 +375,11 @@ export class Game {
     this.state = 'levelcomplete';
     this.player.update(0, 0, false);
     this.audio.stopMusic();
-
     const nextLevelNum = this.levelIndex + 2;
-    if (nextLevelNum <= LevelConfigs.length) {
-      this.save.unlockedLevel = Math.max(this.save.unlockedLevel, nextLevelNum);
-    }
+    if (nextLevelNum <= LevelConfigs.length) this.save.unlockedLevel = Math.max(this.save.unlockedLevel, nextLevelNum);
     this.save.bestLevel = Math.max(this.save.bestLevel, nextLevelNum);
     this.save.stats.bestCombo = Math.max(this.save.stats.bestCombo, this.bestCombo);
     writeSave(this.save);
-
     this.audio.victory();
     this.hud.hide();
     this.screens.showLevelComplete(this.sessionCoins, this.correctCount);
@@ -425,11 +405,8 @@ export class Game {
       this.track.update(dt, 8);
       this.env.update(dt, 8);
       this.particles.update(dt);
-      if (this.state !== 'paused') {
-        this.player.update(dt, 8, false);
-      }
+      if (this.state !== 'paused') this.player.update(dt, 8, false);
     }
-
     this.renderer.render(this.scene, this.camera);
   }
 }
