@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const LANE_WIDTH = 3;
 
@@ -9,6 +10,9 @@ export class Player {
     this.targetX = 0;
     this.x = 0;
     this.runTime = 0;
+    this.modelMixer = null;
+    this.modelRoot = null;
+    this.modelActions = [];
     this.group = new THREE.Group();
     this.buildBody({ bodyColor: 0x4dabf7, headColor: 0xffdbac });
     scene.add(this.group);
@@ -112,6 +116,48 @@ export class Player {
 
   setCharacter(cfg) {
     this.buildBody(cfg);
+    if (this.modelRoot) this.modelRoot.visible = false;
+  }
+
+  /**
+   * Optional production asset hook. Supply a licensed, rigged GLB with embedded
+   * run/idle clips; the procedural runner remains visible if loading fails.
+   */
+  async loadAnimatedModel(url) {
+    const loader = new GLTFLoader();
+    const gltf = await loader.loadAsync(url);
+    const root = gltf.scene;
+    const bounds = new THREE.Box3().setFromObject(root);
+    const size = new THREE.Vector3();
+    const center = new THREE.Vector3();
+    bounds.getSize(size);
+    bounds.getCenter(center);
+    if (!Number.isFinite(size.y) || size.y <= 0) throw new Error('Runner GLB has invalid bounds.');
+    const scale = 2.55 / size.y;
+    root.scale.setScalar(scale);
+    root.position.set(-center.x * scale, -bounds.min.y * scale, -center.z * scale);
+    root.traverse((object) => {
+      if (object.isMesh) {
+        object.castShadow = true;
+        object.receiveShadow = false;
+      }
+    });
+    this.group.add(root);
+    if (this.modelRoot) this.group.remove(this.modelRoot);
+    this.modelRoot = root;
+    for (const child of this.group.children) {
+      if (child !== root) child.visible = false;
+    }
+    this.modelMixer = new THREE.AnimationMixer(root);
+    const clips = gltf.animations || [];
+    const runClip = clips.find((clip) => /run|jog|sprint/i.test(clip.name)) || clips[0];
+    this.modelActions = [];
+    if (runClip) {
+      const action = this.modelMixer.clipAction(runClip);
+      action.play();
+      this.modelActions.push(action);
+    }
+    return { animations: clips.map((clip) => clip.name), model: root };
   }
 
   moveLane(dir) {
@@ -127,6 +173,8 @@ export class Player {
   }
 
   update(dt, speed, alive) {
+    if (this.modelMixer) this.modelMixer.update(dt);
+    if (this.modelRoot) this.modelRoot.visible = true;
     const diff = this.targetX - this.x;
     this.x += diff * Math.min(1, dt * 10);
     this.group.position.x = this.x;
