@@ -31,8 +31,8 @@ export class Game {
       alpha: false
     });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.isMobile ? 1.5 : 2));
-    this.renderer.shadowMap.enabled = true;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.isMobile ? 1.25 : 2));
+    this.renderer.shadowMap.enabled = !this.isMobile;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -45,16 +45,23 @@ export class Game {
 
     this.scene.userData.lowPower = this.isMobile;
     this.env = new Environment(this.scene);
-    this.env.dirLight.shadow.mapSize.set(this.isMobile ? 1024 : 2048, this.isMobile ? 1024 : 2048);
+    this.env.dirLight.shadow.mapSize.set(this.isMobile ? 512 : 2048, this.isMobile ? 512 : 2048);
+    this.env.dirLight.castShadow = !this.isMobile;
     this.track = new Track(this.scene);
     this.player = new Player(this.scene);
     this.particles = new Particles(this.scene);
     this.questions = new QuestionSystem();
     this.powerups = new PowerUps();
 
+    // Create reusable round objects before play and compile their common shaders during the menu.
+    // This avoids allocating/discarding dozens of meshes and compiling materials at each gate.
+    this.gate = new Gate(this.scene, [0, 1, 2], 0);
+    this.obstacle = new Obstacle(this.scene, 1, 'tree');
+    this.renderer.compile(this.scene, this.camera);
+    this.gate.group.visible = false;
+    this.obstacle.group.visible = false;
+
     this.state = 'menu';
-    this.gate = null;
-    this.obstacle = null;
     this.clock = new THREE.Clock();
     this.levelIndex = 0;
     this.levelConfig = LevelConfigs[0];
@@ -190,8 +197,9 @@ export class Game {
   }
 
   clearLevelObjects() {
-    if (this.gate) { this.gate.dispose(); this.gate = null; }
-    if (this.obstacle) { this.obstacle.dispose(); this.obstacle = null; }
+    // Keep the GPU resources alive and reuse them on the next round to prevent frame hitches.
+    if (this.gate) this.gate.group.visible = false;
+    if (this.obstacle) this.obstacle.group.visible = false;
   }
 
   spawnRound() {
@@ -202,13 +210,20 @@ export class Game {
     this.clearLevelObjects();
 
     // 1. إنشاء البوابات الثلاث (جميعها تظهر)
-    this.gate = new Gate(this.scene, q.answers, q.correctIndex);
+    if (!this.gate) this.gate = new Gate(this.scene, q.answers, q.correctIndex);
+    else this.gate.reset(q.answers, q.correctIndex);
     this.gate.q = q;
 
     // 2. اختيار مسار عشوائي ووضع عائق فيه (في المنتصف وقبل البوابة)
     const wrongLanes = [0, 1, 2].filter(i => i !== q.correctIndex);
     const obstacleLane = wrongLanes[Math.floor(Math.random() * wrongLanes.length)];
-    this.obstacle = new Obstacle(this.scene, obstacleLane, this.levelConfig.worldData.obstacleType);
+    const obstacleType = this.levelConfig.worldData.obstacleType;
+    if (this.obstacle && this.obstacle.worldType !== obstacleType) {
+      this.obstacle.dispose();
+      this.obstacle = null;
+    }
+    if (!this.obstacle) this.obstacle = new Obstacle(this.scene, obstacleLane, obstacleType);
+    else this.obstacle.reset(obstacleLane, obstacleType);
 
     // لا نخفي البوابة! نتركها تظهر ليعرف اللاعب أن هذا المسار مسدود
     // لكنه سيصطدم بالعائق إذا اختاره
