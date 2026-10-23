@@ -1,5 +1,10 @@
-const CACHE_NAME = 'math-runner-shell-v1';
-const APP_SHELL = ['/', '/manifest.json', '/icon.svg'];
+const CACHE_NAME = 'math-runner-shell-v2';
+const APP_ROOT = new URL('./', self.location.href).toString();
+const APP_SHELL = [
+  APP_ROOT,
+  new URL('manifest.json', APP_ROOT).toString(),
+  new URL('icon.svg', APP_ROOT).toString()
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -30,11 +35,11 @@ self.addEventListener('fetch', (event) => {
         .then((response) => {
           if (response.ok) {
             const copy = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put('/', copy));
+            caches.open(CACHE_NAME).then((cache) => cache.put(APP_ROOT, copy));
           }
           return response;
         })
-        .catch(async () => (await caches.match(request)) || (await caches.match('/')))
+        .catch(async () => (await caches.match(request)) || (await caches.match(APP_ROOT))
     );
     return;
   }
