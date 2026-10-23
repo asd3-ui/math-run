@@ -1,4 +1,4 @@
-import { LevelConfigs } from '../data/questions.js';
+import { LevelConfigs, Worlds } from '../data/questions.js';
 import { Characters } from '../data/characters.js';
 
 export class Screens {
@@ -26,30 +26,18 @@ export class Screens {
 
   bindGlobal() {
     document.querySelectorAll('[data-back]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        this.handlers.back?.(btn.dataset.back);
-      });
+      btn.addEventListener('click', () => this.handlers.back?.(btn.dataset.back));
     });
-
     document.querySelectorAll('[data-buy]').forEach(item => {
       item.addEventListener('click', () => this.handlers.buy?.(item.dataset.buy));
     });
 
-    document.getElementById('btn-play').addEventListener('click', () => {
-      this.handlers.play?.(this.save.unlockedLevel);
-    });
-    document.getElementById('btn-endless').addEventListener('click', () => {
-      this.handlers.endless?.();
-    });
+    document.getElementById('btn-play').addEventListener('click', () => this.handlers.play?.(this.save.unlockedLevel));
+    document.getElementById('btn-endless').addEventListener('click', () => this.handlers.endless?.());
     document.getElementById('btn-levels').addEventListener('click', () => this.show('levels'));
     document.getElementById('btn-shop').addEventListener('click', () => this.show('shop'));
-    document.getElementById('btn-characters').addEventListener('click', () => {
-      this.show('characters');
-      this.refreshCharacters();
-    });
-    document.getElementById('btn-retry').addEventListener('click', () => {
-      this.handlers.play?.(this.save.unlockedLevel);
-    });
+    document.getElementById('btn-characters').addEventListener('click', () => { this.show('characters'); this.refreshCharacters(); });
+    document.getElementById('btn-retry').addEventListener('click', () => this.handlers.play?.(this.save.unlockedLevel));
     document.getElementById('btn-next').addEventListener('click', () => this.handlers.next?.());
     document.getElementById('btn-resume').addEventListener('click', () => this.handlers.resume?.());
   }
@@ -80,14 +68,26 @@ export class Screens {
 
   refreshLevels() {
     this.levelsGrid.innerHTML = '';
-    LevelConfigs.forEach((cfg, i) => {
-      const unlocked = (i + 1) <= this.save.unlockedLevel;
-      const btn = document.createElement('button');
-      btn.className = 'level-btn' + (unlocked ? '' : ' locked');
-      btn.innerHTML = `<span class="num">${i + 1}</span><span class="name">${cfg.name}</span>`;
-      btn.disabled = !unlocked;
-      btn.addEventListener('click', () => this.handlers.play?.(i + 1));
-      this.levelsGrid.appendChild(btn);
+    
+    // تجميع المراحل حسب العالم
+    Worlds.forEach((world, worldIndex) => {
+      const worldHeader = document.createElement('div');
+      worldHeader.style.cssText = 'grid-column: 1 / -1; text-align: right; padding: 15px 5px 5px; font-size: 18px; font-weight: bold; color: #a78bfa; border-bottom: 1px solid rgba(124,92,255,0.3); margin-bottom: 5px;';
+      worldHeader.textContent = `🌍 العالم ${worldIndex + 1}: ${world.name}`;
+      this.levelsGrid.appendChild(worldHeader);
+
+      const worldLevels = LevelConfigs.filter(l => l.worldId === world.id);
+      
+      worldLevels.forEach((cfg) => {
+        const levelIndex = cfg.id - 1;
+        const unlocked = cfg.id <= this.save.unlockedLevel;
+        const btn = document.createElement('button');
+        btn.className = 'level-btn' + (unlocked ? '' : ' locked');
+        btn.innerHTML = `<span class="num">${cfg.id}</span><span class="name">${cfg.name}</span>`;
+        btn.disabled = !unlocked;
+        btn.addEventListener('click', () => this.handlers.play?.(cfg.id));
+        this.levelsGrid.appendChild(btn);
+      });
     });
   }
 
@@ -96,7 +96,6 @@ export class Screens {
     Characters.forEach(c => {
       const owned = this.save.ownedCharacters.includes(c.id);
       const selected = this.save.selectedCharacter === c.id;
-
       const btn = document.createElement('button');
       btn.className = 'character-item' + (selected ? ' selected' : '') + (owned ? '' : ' locked');
       btn.innerHTML = `
@@ -104,11 +103,7 @@ export class Screens {
         <div class="cname">${c.name}</div>
         <div class="ctag">${owned ? (selected ? '✓ مختار' : 'امتلكته') : `${c.price} 🪙`}</div>
       `;
-
-      btn.addEventListener('click', () => {
-        this.handlers.character?.(c);
-      });
-
+      btn.addEventListener('click', () => this.handlers.character?.(c));
       this.charactersGrid.appendChild(btn);
     });
   }
