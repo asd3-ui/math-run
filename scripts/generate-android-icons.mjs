@@ -2,9 +2,9 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { Resvg } from '@resvg/resvg-js';
 
-// Rasterize the existing repository icon for Android launcher densities.
-// The source SVG is intentionally never modified.
-const svg = readFileSync(new URL('../icon.svg', import.meta.url), 'utf8');
+// Rasterize the existing existing public app icon for Android launcher densities.
+// Use the original public icon supplied with the project; never modify it.
+const svg = readFileSync(new URL('../public/icon.svg', import.meta.url), 'utf8');
 const androidRes = new URL('../android/app/src/main/res/', import.meta.url);
 const root = androidRes.pathname;
 const densities = [
