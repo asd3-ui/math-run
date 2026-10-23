@@ -41,13 +41,15 @@ for (const level of LevelConfigs) {
 
 console.log('Gameplay regression tests passed: all worlds and levels, generated questions, answer indexing, gate/obstacle outcomes, combo rewards, endless mode, and characters.');
 
-if (process.env.RUN_GAME_E2E === '1') {
+if (process.env.RUN_GAME_E2E === '1' || process.argv.includes('--e2e')) {
   const { spawn } = await import('node:child_process');
   const { chromium } = await import('playwright');
   const server = spawn(process.execPath, [
     'node_modules/vite/bin/vite.js', 'preview',
     '--host', '127.0.0.1', '--port', '4173', '--strictPort'
-  ], { stdio: 'ignore' });
+  ], { stdio: process.env.DEBUG_GAME_E2E === '1' ? 'inherit' : 'ignore' });
+  let serverError = null;
+  server.on('error', (error) => { serverError = error; });
   let browser;
   try {
     let ready = false;
@@ -58,7 +60,7 @@ if (process.env.RUN_GAME_E2E === '1') {
       } catch {}
       await new Promise((resolve) => setTimeout(resolve, 250));
     }
-    assert.ok(ready, 'Vite preview server must start for the browser gameplay test.');
+    assert.ok(ready, `Vite preview server must start for the browser gameplay test.${serverError ? ` ${serverError.message}` : ''}`);
 
     browser = await chromium.launch({
       headless: true,
@@ -91,7 +93,31 @@ if (process.env.RUN_GAME_E2E === '1') {
     const initialCoins = Number(await page.locator('#coins').innerText());
     if (correctLane < 1) await page.keyboard.press('ArrowLeft');
     else if (correctLane > 1) await page.keyboard.press('ArrowRight');
-    await page.waitForFunction(() => document.querySelector('#progress')?.textContent?.startsWith('1/'), null, { timeout: 16000 });
+    // Software-rendered CI browsers advance the simulation much more slowly
+    // than real time. Accelerate only this test run after input is registered.
+    await page.evaluate(() => {
+      const game = window.__MATH_RUN_E2E_GAME__;
+      game.speed = 100;
+      game.levelConfig.speed = 100;
+    });
+    try {
+      await page.waitForFunction(() => document.querySelector('#progress')?.textContent?.startsWith('1/'), null, { timeout: 30000 });
+    } catch (error) {
+      const state = await page.evaluate(() => {
+        const game = window.__MATH_RUN_E2E_GAME__;
+        return {
+          state: game?.state,
+          lane: game?.player?.lane,
+          correctIndex: game?.gate?.correctIndex,
+          gateZ: game?.gate?.group?.position?.z,
+          gateVisible: game?.gate?.group?.visible,
+          obstacleLane: game?.obstacle?.lane,
+          hearts: game?.hearts,
+          progress: document.querySelector('#progress')?.textContent
+        };
+      });
+      throw new Error(`${error.message}; live round state: ${JSON.stringify(state)}`);
+    }
     const earnedCoins = Number(await page.locator('#coins').innerText());
     assert.ok(earnedCoins > initialCoins, 'Passing the correct gate must award coins.');
     assert.deepEqual(pageErrors, [], 'The game must not throw uncaught browser errors during a live round.');

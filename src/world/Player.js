@@ -115,10 +115,15 @@ export class Player {
   }
 
   setCharacter(cfg) {
-    this.modelMixer?.stopAllAction();
-    this.modelMixer = null;
-    this.modelRoot = null;
+    // Character selection only rebuilds the procedural fallback. Keep an
+    // already-loaded licensed model and its mixer alive across selections.
+    const modelRoot = this.modelRoot;
+    if (modelRoot) this.group.remove(modelRoot);
     this.buildBody(cfg);
+    if (modelRoot) {
+      this.group.add(modelRoot);
+      for (const child of this.group.children) child.visible = child === modelRoot;
+    }
   }
 
   /**
@@ -129,12 +134,21 @@ export class Player {
     const loader = new GLTFLoader();
     const gltf = await loader.loadAsync(url);
     const root = gltf.scene;
+    const clips = gltf.animations || [];
+    if (clips.length === 0) throw new Error('Runner GLB does not contain an animation clip.');
     const bounds = new THREE.Box3().setFromObject(root);
     const size = new THREE.Vector3();
     const center = new THREE.Vector3();
     bounds.getSize(size);
     bounds.getCenter(center);
-    if (!Number.isFinite(size.y) || size.y <= 0) throw new Error('Runner GLB has invalid bounds.');
+    if (!Number.isFinite(size.y) || size.y <= 0) {
+      root.traverse((object) => {
+        object.geometry?.dispose();
+        if (Array.isArray(object.material)) object.material.forEach((material) => material.dispose());
+        else object.material?.dispose();
+      });
+      throw new Error('Runner GLB has invalid bounds.');
+    }
     const scale = 2.55 / size.y;
     root.scale.setScalar(scale);
     root.position.set(-center.x * scale, -bounds.min.y * scale, -center.z * scale);
@@ -151,7 +165,6 @@ export class Player {
       if (child !== root) child.visible = false;
     }
     this.modelMixer = new THREE.AnimationMixer(root);
-    const clips = gltf.animations || [];
     const runClip = clips.find((clip) => /run|jog|sprint/i.test(clip.name)) || clips[0];
     this.modelActions = [];
     if (runClip) {

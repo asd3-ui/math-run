@@ -131,6 +131,9 @@ export class Game {
     this.env.dirLight.castShadow = !this.isMobile;
     this.track = new Track(this.scene);
     this.player = new Player(this.scene);
+    // Keep the procedural runner available while the optional model loads.
+    this.player.loadAnimatedModel('/models/quaternius-platformer-runner.glb')
+      .catch((error) => console.warn('Using procedural runner; optional GLB unavailable:', error));
     this.particles = new Particles(this.scene);
     this.questions = new QuestionSystem();
     this.powerups = new PowerUps();

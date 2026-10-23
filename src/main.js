@@ -22,6 +22,7 @@ const audio = new AudioSystem();
 const hud = new HUD();
 const screens = new Screens(save);
 const game = new Game({ hud, screens, audio, save });
+if (new URLSearchParams(window.location.search).has('e2e')) window.__MATH_RUN_E2E_GAME__ = game;
 
 // ربط الأزرار
 screens.handlers.play = (levelNum) => game.startLevel(levelNum - 1);
