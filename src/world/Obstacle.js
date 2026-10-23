@@ -21,7 +21,7 @@ export class Obstacle {
       rock: new THREE.DodecahedronGeometry(1.25, 1),
       smallRock: new THREE.DodecahedronGeometry(0.55, 0),
       box: new THREE.BoxGeometry(1.55, 2.4, 1.1),
-      frameBase: new THREE.BoxGeometry(1.68, 2.52, 1.2),
+      frameEdges: new THREE.EdgesGeometry(new THREE.BoxGeometry(1.68, 2.52, 1.2)),
       neonBar: new THREE.BoxGeometry(1.2, 0.14, 1.18),
       asteroid: new THREE.IcosahedronGeometry(1.25, 1),
       ring: new THREE.TorusGeometry(1.55, 0.075, 8, 28),
@@ -48,7 +48,7 @@ export class Obstacle {
       add(geometries.smallRock, materials.stone, 0.65, 0.55, 0.15, 0.9, 0.75, 0.8);
     } else if (worldType === 'neon') {
       add(geometries.box, materials.metal, 0, 1.2, 0);
-      const frame = new THREE.Mesh(new THREE.EdgesGeometry(geometries.frameBase), materials.glow);
+      const frame = new THREE.Mesh(geometries.frameEdges, materials.glow);
       frame.position.y = 1.2;
       this.group.add(frame);
       add(geometries.neonBar, materials.glow, 0, 2.0, 0);
