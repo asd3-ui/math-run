@@ -1,43 +1,48 @@
 import * as THREE from 'three';
 
 const PANEL_COLORS = ['#ff6b6b', '#4dabf7', '#51cf66'];
+const FRAME_GEOMETRY = {
+  panel: new THREE.PlaneGeometry(2.6, 2.6),
+  post: new THREE.BoxGeometry(0.14, 3.55, 0.22),
+  innerLight: new THREE.BoxGeometry(0.045, 2.8, 0.035),
+  header: new THREE.BoxGeometry(2.98, 0.16, 0.22),
+  headerGlow: new THREE.BoxGeometry(2.65, 0.045, 0.04),
+  base: new THREE.BoxGeometry(2.75, 0.35, 0.7)
+};
+const frameMaterials = PANEL_COLORS.map(color => new THREE.MeshStandardMaterial({
+  color: new THREE.Color(color), metalness: 0.68, roughness: 0.28,
+  emissive: new THREE.Color(color), emissiveIntensity: 0.7
+}));
+const panelMaterials = [];
+const baseMaterials = PANEL_COLORS.map(color => new THREE.MeshStandardMaterial({
+  color: 0x1a1a2e, metalness: 0.5, roughness: 0.34,
+  emissive: new THREE.Color(color), emissiveIntensity: 0.4
+}));
+const trimMaterial = new THREE.MeshStandardMaterial({ color: 0xe9f6ff, metalness: 0.82, roughness: 0.22 });
 
-function makeTextTexture(text, bg) {
-  const size = 512;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
+function drawAnswerTexture(canvas, text, bg) {
+  const size = canvas.width;
   const ctx = canvas.getContext('2d');
-
-  // Rounded background
+  ctx.clearRect(0, 0, size, size);
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, size, size);
-
-  // Inner shading
-  const grd = ctx.createRadialGradient(size / 2, size / 2, 20, size / 2, size / 2, size / 2);
+  const grd = ctx.createRadialGradient(size / 2, size / 2, 10, size / 2, size / 2, size / 2);
   grd.addColorStop(0, 'rgba(255,255,255,0.25)');
   grd.addColorStop(1, 'rgba(0,0,0,0.25)');
   ctx.fillStyle = grd;
   ctx.fillRect(0, 0, size, size);
-
-  // Border
   ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-  ctx.lineWidth = 20;
-  ctx.strokeRect(10, 10, size - 20, size - 20);
-
-  // Text
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 230px Arial, sans-serif';
+  ctx.lineWidth = 12;
+  ctx.strokeRect(6, 6, size - 12, size - 12);
+  ctx.fillStyle = '#fff';
+  ctx.font = '900 112px Arial, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.shadowColor = 'rgba(0,0,0,0.6)';
-  ctx.shadowBlur = 20;
-  ctx.fillText(String(text), size / 2, size / 2 + 12);
-
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 8;
-  return tex;
+  ctx.shadowColor = 'rgba(0,0,0,0.55)';
+  ctx.shadowBlur = 9;
+  const label = String(text);
+  if (label.length > 4) ctx.font = '900 82px Arial, sans-serif';
+  ctx.fillText(label, size / 2, size / 2 + 3, size - 26);
 }
 
 export class Gate {
@@ -46,88 +51,86 @@ export class Gate {
     this.correctIndex = correctIndex;
     this.answers = answers;
     this.checked = false;
-
     this.group = new THREE.Group();
     this.panels = [];
     this.bases = [];
+    this.answerCanvases = [];
+    this.answerTextures = [];
 
     for (let i = 0; i < 3; i++) {
-      const colorHex = PANEL_COLORS[i];
-      const tex = makeTextTexture(answers[i], colorHex);
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 256;
+      drawAnswerTexture(canvas, answers[i], PANEL_COLORS[i]);
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.anisotropy = 1;
+      this.answerCanvases.push(canvas);
+      this.answerTextures.push(texture);
 
-      const mat = new THREE.MeshStandardMaterial({
-        map: tex,
-        transparent: true,
-        opacity: 0.95,
-        emissive: new THREE.Color(colorHex),
-        emissiveIntensity: 0.35,
+      const material = new THREE.MeshStandardMaterial({
+        map: texture, transparent: true, opacity: 0.98,
+        emissive: new THREE.Color(PANEL_COLORS[i]), emissiveIntensity: 0.35,
         side: THREE.DoubleSide
       });
-
+      panelMaterials.push(material);
       const laneX = (i - 1) * 3;
-      const panel = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 2.6), mat);
+      const panel = new THREE.Mesh(FRAME_GEOMETRY.panel, material);
       panel.position.set(laneX, 2.4, 0);
-      panel.castShadow = true;
+      panel.castShadow = false;
       this.group.add(panel);
       this.panels.push(panel);
 
-      // Three dimensional answer portal: metallic frame, luminous rails and a heavy base.
-      const frameMaterial = new THREE.MeshStandardMaterial({
-        color: new THREE.Color(colorHex), metalness: 0.68, roughness: 0.28,
-        emissive: new THREE.Color(colorHex), emissiveIntensity: 0.7
-      });
-      const trimMaterial = new THREE.MeshStandardMaterial({
-        color: 0xe9f6ff, metalness: 0.82, roughness: 0.22
-      });
       for (const side of [-1, 1]) {
-        const post = new THREE.Mesh(new THREE.BoxGeometry(0.14, 3.55, 0.22), frameMaterial);
+        const post = new THREE.Mesh(FRAME_GEOMETRY.post, frameMaterials[i]);
         post.position.set(laneX + side * 1.42, 1.82, -0.04);
-        post.castShadow = true;
         this.group.add(post);
-        const innerLight = new THREE.Mesh(new THREE.BoxGeometry(0.045, 2.8, 0.035), trimMaterial);
+        const innerLight = new THREE.Mesh(FRAME_GEOMETRY.innerLight, trimMaterial);
         innerLight.position.set(laneX + side * 1.31, 2.25, -0.17);
         this.group.add(innerLight);
       }
-      const header = new THREE.Mesh(new THREE.BoxGeometry(2.98, 0.16, 0.22), frameMaterial);
+      const header = new THREE.Mesh(FRAME_GEOMETRY.header, frameMaterials[i]);
       header.position.set(laneX, 3.58, -0.04);
-      header.castShadow = true;
       this.group.add(header);
-      const headerGlow = new THREE.Mesh(new THREE.BoxGeometry(2.65, 0.045, 0.04), trimMaterial);
+      const headerGlow = new THREE.Mesh(FRAME_GEOMETRY.headerGlow, trimMaterial);
       headerGlow.position.set(laneX, 3.58, -0.17);
       this.group.add(headerGlow);
-
-      const baseMat = new THREE.MeshStandardMaterial({
-        color: 0x1a1a2e, metalness: 0.5, roughness: 0.34,
-        emissive: new THREE.Color(colorHex), emissiveIntensity: 0.4
-      });
-      const base = new THREE.Mesh(new THREE.BoxGeometry(2.75, 0.35, 0.7), baseMat);
+      const base = new THREE.Mesh(FRAME_GEOMETRY.base, baseMaterials[i]);
       base.position.set(laneX, 0.175, 0);
-      base.castShadow = true;
       this.group.add(base);
       this.bases.push(base);
     }
-
     this.group.position.set(0, 0, -120);
+    this.group.visible = false;
     scene.add(this.group);
+    this.reset(answers, correctIndex);
+  }
+
+  reset(answers, correctIndex) {
+    this.answers = answers;
+    this.correctIndex = correctIndex;
+    this.checked = false;
+    this.group.position.set(0, 0, -120);
+    this.group.visible = true;
+    for (let i = 0; i < 3; i++) {
+      this.panels[i].visible = true;
+      drawAnswerTexture(this.answerCanvases[i], answers[i], PANEL_COLORS[i]);
+      this.answerTextures[i].needsUpdate = true;
+      this.panels[i].material.emissiveIntensity = 0.35;
+      this.bases[i].material.emissiveIntensity = 0.4;
+    }
   }
 
   highlightCorrect() {
     if (this.panels[this.correctIndex]) {
       this.panels[this.correctIndex].material.emissiveIntensity = 1.5;
-      if (this.bases[this.correctIndex]) {
-        this.bases[this.correctIndex].material.emissiveIntensity = 1.5;
-      }
+      if (this.bases[this.correctIndex]) this.bases[this.correctIndex].material.emissiveIntensity = 1.5;
     }
   }
 
   dispose() {
-    this.group.traverse(o => {
-      if (o.geometry) o.geometry.dispose();
-      if (o.material) {
-        if (o.material.map) o.material.map.dispose();
-        o.material.dispose();
-      }
-    });
     this.scene.remove(this.group);
+    for (const texture of this.answerTextures) texture.dispose();
+    // Shared gate geometry/materials intentionally live for the lifetime of the game.
   }
 }
