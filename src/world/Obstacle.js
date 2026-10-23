@@ -40,7 +40,8 @@ export class Obstacle {
       add(geometry(new THREE.DodecahedronGeometry(0.55, 0)), stone, 0.65, 0.55, 0.15, 0.9, 0.75, 0.8);
     } else if (worldType === 'neon') {
       add(geometry(new THREE.BoxGeometry(1.55, 2.4, 1.1)), metal, 0, 1.2, 0);
-      const frame = new THREE.Mesh(geometry(new THREE.EdgesGeometry(new THREE.BoxGeometry(1.68, 2.52, 1.2))), glow);
+      const frameBase = geometry(new THREE.BoxGeometry(1.68, 2.52, 1.2));
+      const frame = new THREE.Mesh(geometry(new THREE.EdgesGeometry(frameBase)), glow);
       frame.position.y = 1.2;
       this.group.add(frame);
       add(geometry(new THREE.BoxGeometry(1.2, 0.14, 1.18)), glow, 0, 2.0, 0);
