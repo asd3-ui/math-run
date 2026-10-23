@@ -55,6 +55,8 @@ jobs:
         run: npm run build
       - name: Generate Android project
         run: npx cap add android
+      - name: Apply repository app icon to Android
+        run: npm run android:icon
       - name: Sync web assets into Android
         run: npx cap sync android
       - name: Build debug APK
