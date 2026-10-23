@@ -158,6 +158,7 @@ export class Game {
   beginRun(config) {
     this.env.setEnvironment(config.worldData);
     this.track.setGroundColor(config.worldData.ground);
+    this.particles.setWorld(config.worldData.id);
 
     this.state = 'playing';
     this.speed = config.speed;
@@ -289,7 +290,7 @@ export class Game {
     this.track.update(dt, effectiveSpeed);
     this.env.update(dt, effectiveSpeed);
     this.player.update(dt, effectiveSpeed, true);
-    this.particles.update(dt);
+    this.particles.update(dt, effectiveSpeed);
 
     if (this.gate) {
       this.gate.group.position.z += effectiveSpeed * dt;
