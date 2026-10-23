@@ -9,59 +9,102 @@ export class Player {
     this.targetX = 0;
     this.x = 0;
     this.runTime = 0;
-    
     this.group = new THREE.Group();
-    this.bodyParts = {};
     this.buildBody({ bodyColor: 0x4dabf7, headColor: 0xffdbac });
     scene.add(this.group);
   }
 
   buildBody(cfg) {
-    // تنظيف
     while (this.group.children.length > 0) {
-      const c = this.group.children[0];
-      this.group.remove(c);
-      if (c.geometry) c.geometry.dispose();
-      if (c.material) c.material.dispose();
+      const child = this.group.children[0];
+      this.group.remove(child);
+      child.traverse?.(part => {
+        if (part.geometry) part.geometry.dispose();
+        if (part.material) {
+          if (Array.isArray(part.material)) part.material.forEach(m => m.dispose());
+          else part.material.dispose();
+        }
+      });
     }
 
-    const bodyMat = new THREE.MeshStandardMaterial({ color: cfg.bodyColor, roughness: 0.4, metalness: 0.1 });
-    const headMat = new THREE.MeshStandardMaterial({ color: cfg.headColor, roughness: 0.5 });
+    const mat = (color, roughness = 0.72, metalness = 0) =>
+      new THREE.MeshStandardMaterial({ color, roughness, metalness });
+    const bodyMat = mat(cfg.bodyColor, 0.48, 0.04);
+    const skinMat = mat(cfg.headColor, 0.72);
+    const pantsMat = mat(0x26364b, 0.88);
+    const shoeMat = mat(0x151a21, 0.5, 0.08);
+    const hairMat = mat(cfg.headColor === 0x1a1a2e ? 0x12131a : 0x35261e, 0.95);
+    const eyeMat = mat(0x151515, 0.3);
+    const accentMat = mat(0xf1f5f9, 0.4, 0.1);
 
-    // جسم أكثر واقعية
-    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.4, 0.9, 8, 16), bodyMat);
-    body.position.y = 1.15;
-    this.group.add(body);
+    const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.38, 0.72, 6, 12), bodyMat);
+    torso.position.y = 1.38;
+    torso.castShadow = true;
+    torso.receiveShadow = true;
+    this.group.add(torso);
 
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.42, 24, 24), headMat);
-    head.position.y = 2.15;
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.15, 0.22, 10), skinMat);
+    neck.position.y = 1.91;
+    this.group.add(neck);
+
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.37, 24, 18), skinMat);
+    head.position.y = 2.22;
+    head.castShadow = true;
     this.group.add(head);
 
-    // عيون
-    const eyeMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2 });
-    for (const dx of [-0.15, 0.15]) {
-      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 12), eyeMat);
-      eye.position.set(dx, 2.2, -0.38);
+    const hair = new THREE.Mesh(new THREE.SphereGeometry(0.385, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.48), hairMat);
+    hair.position.set(0, 2.34, 0.015);
+    this.group.add(hair);
+
+    for (const dx of [-0.13, 0.13]) {
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), eyeMat);
+      eye.position.set(dx, 2.23, -0.326);
       this.group.add(eye);
+      const glint = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 6), accentMat);
+      glint.position.set(dx - 0.01, 2.245, -0.363);
+      this.group.add(glint);
     }
 
-    // أطراف
     this.legs = [];
-    const legMat = new THREE.MeshStandardMaterial({ color: 0x2b2b40, roughness: 0.8 });
-    for (let i = 0; i < 2; i++) {
-      const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 0.6, 8, 12), legMat);
-      leg.position.set(i === 0 ? -0.2 : 0.2, 0.42, 0);
-      this.group.add(leg);
-      this.legs.push(leg);
-    }
-
     this.arms = [];
+    this.legPivots = [];
+    this.armPivots = [];
+
     for (let i = 0; i < 2; i++) {
-      const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.5, 8, 12), bodyMat);
-      arm.position.set(i === 0 ? -0.62 : 0.62, 1.25, 0);
-      this.group.add(arm);
+      const side = i === 0 ? -1 : 1;
+      const legPivot = new THREE.Group();
+      legPivot.position.set(side * 0.19, 0.82, 0);
+      const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.145, 0.47, 5, 10), pantsMat);
+      leg.position.y = -0.27;
+      leg.castShadow = true;
+      legPivot.add(leg);
+      const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.29, 0.14, 0.42), shoeMat);
+      shoe.position.set(0, -0.55, -0.1);
+      shoe.castShadow = true;
+      legPivot.add(shoe);
+      this.group.add(legPivot);
+      this.legPivots.push(legPivot);
+      this.legs.push(leg);
+
+      const armPivot = new THREE.Group();
+      armPivot.position.set(side * 0.46, 1.68, 0);
+      const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.115, 0.42, 5, 10), bodyMat);
+      arm.position.y = -0.27;
+      arm.castShadow = true;
+      armPivot.add(arm);
+      const hand = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), skinMat);
+      hand.position.y = -0.55;
+      armPivot.add(hand);
+      this.group.add(armPivot);
+      this.armPivots.push(armPivot);
       this.arms.push(arm);
     }
+
+    // Small backpack silhouette gives the runner depth from the follow camera.
+    const pack = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.48, 0.22), bodyMat);
+    pack.position.set(0, 1.4, 0.38);
+    pack.castShadow = true;
+    this.group.add(pack);
   }
 
   setCharacter(cfg) {
@@ -81,31 +124,24 @@ export class Player {
   }
 
   update(dt, speed, alive) {
-    // تحكم سلس مع تأثير الميلان (Lean)
     const diff = this.targetX - this.x;
-    this.x += diff * Math.min(1, dt * 12);
+    this.x += diff * Math.min(1, dt * 10);
     this.group.position.x = this.x;
-    
-    // الميلان عند تغيير المسار
-    const targetRotationZ = diff * -0.15; 
-    this.group.rotation.z += (targetRotationZ - this.group.rotation.z) * dt * 10;
+    const lean = THREE.MathUtils.clamp(diff * -0.09, -0.3, 0.3);
+    this.group.rotation.z += (lean - this.group.rotation.z) * Math.min(1, dt * 8);
 
     if (alive) {
-      this.runTime += dt * (speed * 0.35);
-      const swing = Math.sin(this.runTime) * 0.8;
-      
-      this.legs[0].rotation.x = swing;
-      this.legs[1].rotation.x = -swing;
-      this.arms[0].rotation.x = -swing;
-      this.arms[1].rotation.x = swing;
-      
-      // ارتداد أثناء الجري
-      this.group.position.y = Math.abs(Math.sin(this.runTime * 2)) * 0.12;
+      this.runTime += dt * (speed * 0.34);
+      const swing = Math.sin(this.runTime) * 0.78;
+      this.legPivots[0].rotation.x = swing;
+      this.legPivots[1].rotation.x = -swing;
+      this.armPivots[0].rotation.x = -swing * 0.85;
+      this.armPivots[1].rotation.x = swing * 0.85;
+      this.group.position.y = Math.abs(Math.sin(this.runTime * 2)) * 0.09;
     } else {
-      this.legs[0].rotation.x = 0;
-      this.legs[1].rotation.x = 0;
-      this.arms[0].rotation.x = 0;
-      this.arms[1].rotation.x = 0;
+      for (const pivot of this.legPivots) pivot.rotation.x *= Math.max(0, 1 - dt * 8);
+      for (const pivot of this.armPivots) pivot.rotation.x *= Math.max(0, 1 - dt * 8);
+      this.group.position.y *= Math.max(0, 1 - dt * 8);
     }
   }
 }

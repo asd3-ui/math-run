@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">سباق الرياضيات</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#151a36"/>
+      <stop offset="1" stop-color="#050711"/>
+    </linearGradient>
+    <linearGradient id="road" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#8d7bff"/>
+      <stop offset="1" stop-color="#45d9ff"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <circle cx="256" cy="190" r="124" fill="#7c5cff" opacity=".14"/>
+  <path d="M150 512 208 235h96l58 277z" fill="#2d3448" stroke="#aab5d3" stroke-width="7"/>
+  <path d="M250 267h12l-4 45h-12zm-10 76h12l-5 48h-12zm-12 80h12l-6 45h-12z" fill="#fff4d5"/>
+  <g stroke="#f5f7ff" stroke-width="22" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <circle cx="257" cy="104" r="30" fill="#ffcf9b" stroke="none"/>
+    <path d="m246 146-29 82 50 31 39-62"/>
+    <path d="m234 162-52 31-29-27"/>
+    <path d="m267 252-40 59-49 19"/>
+    <path d="m267 252 38 58 43 16"/>
+  </g>
+  <path d="m218 143 53 12-14 45-53-12z" fill="url(#road)"/>
+  <rect x="318" y="52" width="120" height="120" rx="30" fill="#10162a" stroke="#45d9ff" stroke-width="6"/>
+  <text x="378" y="130" font-family="Arial,sans-serif" font-size="58" font-weight="900" text-anchor="middle" fill="#fff">÷</text>
+</svg>

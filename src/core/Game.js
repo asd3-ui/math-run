@@ -23,15 +23,29 @@ export class Game {
     this.camera.position.set(0, 7.5, 13);
     this.camera.lookAt(0, 1.5, -10);
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    // Adaptive quality: retain richer desktop rendering while limiting GPU cost on phones.
+    this.isMobile = window.matchMedia('(max-width: 760px), (pointer: coarse)').matches;
+    this.renderer = new THREE.WebGLRenderer({
+      antialias: !this.isMobile,
+      powerPreference: 'high-performance',
+      alpha: false
+    });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.isMobile ? 1.5 : 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.08;
+    this.renderer.info.autoReset = true;
     document.getElementById('canvas-container').appendChild(this.renderer.domElement);
 
+    // Shadow maps are intentionally smaller on mobile to keep frame time stable.
+    this.renderer.domElement.style.touchAction = 'none';
+
+    this.scene.userData.lowPower = this.isMobile;
     this.env = new Environment(this.scene);
+    this.env.dirLight.shadow.mapSize.set(this.isMobile ? 1024 : 2048, this.isMobile ? 1024 : 2048);
     this.track = new Track(this.scene);
     this.player = new Player(this.scene);
     this.particles = new Particles(this.scene);
@@ -89,6 +103,7 @@ export class Game {
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.isMobile ? 1.5 : 2));
   }
 
   backTo(target) {
@@ -392,6 +407,10 @@ export class Game {
       this.particles.update(dt);
       if (this.state !== 'paused') this.player.update(dt, 8, false);
     }
+    // Soft follow-camera movement adds speed and weight without affecting lane logic.
+    const desiredCameraX = this.player.group.position.x * 0.22;
+    this.camera.position.x += (desiredCameraX - this.camera.position.x) * Math.min(1, dt * 2.8);
+    this.camera.lookAt(this.player.group.position.x * 0.16, 1.45, -10);
     this.renderer.render(this.scene, this.camera);
   }
 }
