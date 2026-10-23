@@ -4,15 +4,12 @@ export class Track {
   constructor(scene) {
     this.scene = scene;
     this.segmentLength = 20;
-    this.segmentCount = 20;
+    this.segmentCount = 25;
     this.segments = [];
-    this.groundColor = 0x2b2b40;
-
-    this.build();
+    this.build(0x2b2b40);
   }
 
-  build() {
-    // Clear
+  build(groundColor) {
     for (const seg of this.segments) {
       this.scene.remove(seg);
       seg.traverse(o => {
@@ -22,35 +19,29 @@ export class Track {
     }
     this.segments = [];
 
-    const roadMat = new THREE.MeshStandardMaterial({ color: this.groundColor, roughness: 0.95 });
-    const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
-    const edgeMat = new THREE.MeshStandardMaterial({
-      color: 0x7c5cff, emissive: 0x7c5cff, emissiveIntensity: 0.7
-    });
+    const roadMat = new THREE.MeshStandardMaterial({ color: groundColor, roughness: 0.8, metalness: 0.1 });
+    const lineMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.5 });
+    const edgeMat = new THREE.MeshStandardMaterial({ color: 0x7c5cff, emissive: 0x7c5cff, emissiveIntensity: 1.0 });
 
     for (let i = 0; i < this.segmentCount; i++) {
       const seg = new THREE.Group();
 
-      const road = new THREE.Mesh(new THREE.PlaneGeometry(9, this.segmentLength), roadMat);
-      road.rotation.x = -Math.PI / 2;
+      const road = new THREE.Mesh(new THREE.BoxGeometry(9, 0.2, this.segmentLength), roadMat);
+      road.receiveShadow = true;
+      road.position.y = -0.1;
       seg.add(road);
 
+      // خطوط الطريق
       for (const x of [-1.5, 1.5]) {
-        const line = new THREE.Mesh(
-          new THREE.PlaneGeometry(0.12, this.segmentLength * 0.55),
-          lineMat
-        );
-        line.rotation.x = -Math.PI / 2;
+        const line = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.21, this.segmentLength * 0.4), lineMat);
         line.position.set(x, 0.01, 0);
         seg.add(line);
       }
 
-      for (const x of [-4.55, 4.55]) {
-        const edge = new THREE.Mesh(
-          new THREE.BoxGeometry(0.15, 0.12, this.segmentLength),
-          edgeMat
-        );
-        edge.position.set(x, 0.06, 0);
+      // حواف مضيئة
+      for (const x of [-4.5, 4.5]) {
+        const edge = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.3, this.segmentLength), edgeMat);
+        edge.position.set(x, 0.05, 0);
         seg.add(edge);
       }
 
@@ -61,8 +52,7 @@ export class Track {
   }
 
   setGroundColor(color) {
-    this.groundColor = color;
-    this.build();
+    this.build(color);
   }
 
   update(dt, speed) {
