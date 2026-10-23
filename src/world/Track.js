@@ -44,6 +44,7 @@ export class Track {
     if (this.shoulderMaterial) this.shoulderMaterial.dispose();
     if (this.lineMaterial) this.lineMaterial.dispose();
     if (this.edgeMaterial) this.edgeMaterial.dispose();
+    if (this.reflectorMaterial) this.reflectorMaterial.dispose();
 
     this.roadMaterial = new THREE.MeshStandardMaterial({
       color: groundColor, map: this.roadTexture, roughness: 0.94, metalness: 0.02
@@ -53,7 +54,7 @@ export class Track {
     this.edgeMaterial = new THREE.MeshStandardMaterial({
       color: 0xcbd3d8, metalness: 0.55, roughness: 0.32
     });
-    const reflectorMaterial = new THREE.MeshStandardMaterial({
+    this.reflectorMaterial = new THREE.MeshStandardMaterial({
       color: 0xffd56a, emissive: 0x6b3d05, emissiveIntensity: 0.35, roughness: 0.4
     });
 
@@ -78,7 +79,7 @@ export class Track {
         seg.add(rail);
 
         for (let j = 0; j < 4; j++) {
-          const reflector = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.045, 0.5), reflectorMaterial);
+          const reflector = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.045, 0.5), this.reflectorMaterial);
           reflector.position.set(side * 5.85, 0.43, -this.segmentLength / 2 + 2.5 + j * 5);
           seg.add(reflector);
         }
