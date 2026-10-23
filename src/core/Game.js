@@ -5,13 +5,93 @@ import { Gate } from '../world/Gate.js';
 import { Obstacle } from '../world/Obstacle.js';
 import { Environment } from '../world/Environment.js';
 import { Particles } from '../world/Particles.js';
-import { QuestionSystem } from '../systems/QuestionSystem.js';
+import { QuestionSystem, calculateCoinReward, chooseWrongLane, evaluateGate } from '../systems/QuestionSystem.js';
 import { PowerUps } from '../systems/PowerUps.js';
 import { LevelConfigs, EndlessConfig } from '../data/questions.js';
 import { Characters } from '../data/characters.js';
 import { writeSave } from '../systems/Progress.js';
 
-export class Game {
+
+class AdaptiveQuality {
+  constructor(renderer, mobile) {
+    this.renderer = renderer;
+    this.mobile = mobile;
+    this.tier = mobile ? 1 : 2;
+    this.frameTime = 1 / 60;
+    this.elapsed = 0;
+    this.decisionElapsed = 0;
+    this.stableElapsed = 0;
+    this.fps = 60;
+    this.debug = new URLSearchParams(window.location.search).has('debug');
+    this.overlay = null;
+    this.pixelRatio = 1;
+    this.apply(true);
+    if (this.debug) {
+      this.overlay = document.createElement('pre');
+      Object.assign(this.overlay.style, {
+        position: 'fixed', zIndex: '99999', left: '6px', top: '6px',
+        margin: '0', padding: '7px 9px', borderRadius: '6px',
+        color: '#e8f8ff', background: 'rgba(3,8,20,.82)',
+        font: '11px/1.45 monospace', pointerEvents: 'none', whiteSpace: 'pre'
+      });
+      document.body.appendChild(this.overlay);
+    }
+  }
+
+  apply(force = false) {
+    const pixelLimits = [0.85, 1.0, 1.5];
+    const ratio = Math.min(window.devicePixelRatio || 1, pixelLimits[this.tier] * (this.mobile ? 1 : 1.3), this.mobile ? 1.25 : 2);
+    if (force || ratio !== this.pixelRatio) {
+      this.pixelRatio = ratio;
+      this.renderer.setPixelRatio(ratio);
+      this.renderer.setSize(window.innerWidth, window.innerHeight, false);
+    }
+    const shadows = this.tier === 2 && !this.mobile;
+    if (this.renderer.shadowMap.enabled !== shadows) {
+      this.renderer.shadowMap.enabled = shadows;
+      this.renderer.shadowMap.needsUpdate = true;
+    }
+    this.renderer.domElement.dataset.quality = ['low', 'balanced', 'high'][this.tier];
+  }
+
+  update(dt) {
+    if (!Number.isFinite(dt) || dt <= 0) return;
+    this.frameTime += (dt - this.frameTime) * 0.08;
+    this.fps = 1 / Math.max(0.001, this.frameTime);
+    this.elapsed += dt;
+    this.decisionElapsed += dt;
+    this.stableElapsed += dt;
+
+    if (this.decisionElapsed >= 2.5) {
+      if (this.frameTime > 0.027 && this.tier > 0) {
+        this.tier--;
+        this.stableElapsed = 0;
+        this.apply();
+      } else if (this.frameTime < 0.017 && this.tier < (this.mobile ? 1 : 2) && this.stableElapsed > 12) {
+        this.tier++;
+        this.stableElapsed = 0;
+        this.apply();
+      }
+      this.decisionElapsed = 0;
+    }
+
+    if (this.overlay && this.elapsed >= 1) {
+      const info = this.renderer.info;
+      const heap = performance.memory
+        ? `JS heap: ${(performance.memory.usedJSHeapSize / 1048576).toFixed(0)}/${(performance.memory.jsHeapSizeLimit / 1048576).toFixed(0)} MB`
+        : 'JS heap: not exposed by this WebView';
+      this.overlay.textContent = [
+        `FPS ${this.fps.toFixed(0)} | ${(1000 / Math.max(1, this.fps)).toFixed(1)} ms/frame`,
+        `quality: ${['low', 'balanced', 'high'][this.tier]} | DPR: ${this.pixelRatio.toFixed(2)}`,
+        `draw calls: ${info.render.calls} | triangles: ${info.render.triangles}`,
+        `geometries: ${info.memory.geometries} | textures: ${info.memory.textures}`,
+        heap
+      ].join('\\n');
+      this.elapsed = 0;
+    }
+  }
+}
+\nexport class Game {
   constructor({ hud, screens, audio, save }) {
     this.hud = hud;
     this.screens = screens;
@@ -42,6 +122,7 @@ export class Game {
 
     // Shadow maps are intentionally smaller on mobile to keep frame time stable.
     this.renderer.domElement.style.touchAction = 'none';
+    this.quality = new AdaptiveQuality(this.renderer, this.isMobile);
 
     this.scene.userData.lowPower = this.isMobile;
     this.env = new Environment(this.scene);
@@ -110,7 +191,8 @@ export class Game {
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.isMobile ? 1.25 : 2));
+    if (this.quality) this.quality.apply(true);
+    else this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.isMobile ? 1.25 : 2));
   }
 
   backTo(target) {
@@ -215,8 +297,7 @@ export class Game {
     this.gate.q = q;
 
     // 2. اختيار مسار عشوائي ووضع عائق فيه (في المنتصف وقبل البوابة)
-    const wrongLanes = [0, 1, 2].filter(i => i !== q.correctIndex);
-    const obstacleLane = wrongLanes[Math.floor(Math.random() * wrongLanes.length)];
+    const obstacleLane = chooseWrongLane(q.correctIndex);
     const obstacleType = this.levelConfig.worldData.obstacleType;
     if (this.obstacle && this.obstacle.worldType !== obstacleType) {
       this.obstacle.dispose();
@@ -332,13 +413,18 @@ export class Game {
     if (!gate) return;
 
     // هل اللاعب في مسار العائق؟
-    const hitObstacle = this.obstacle && this.player.lane === this.obstacle.lane;
+    const decision = evaluateGate({
+      playerLane: this.player.lane,
+      correctIndex: gate.correctIndex,
+      obstacleLane: this.obstacle ? this.obstacle.lane : null
+    });
+    const hitObstacle = decision.hitObstacle;
 
-    if (this.player.lane === gate.correctIndex && !hitObstacle) {
+    if (decision.correct) {
       // إجابة صحيحة
       this.combo++;
       if (this.combo > this.bestCombo) this.bestCombo = this.combo;
-      const gain = 10 + this.combo * 5;
+      const gain = calculateCoinReward(this.combo);
       this.sessionCoins += gain;
       this.save.coins += gain;
       this.save.stats.totalCoins += gain;
@@ -428,5 +514,6 @@ export class Game {
     this.camera.position.x += (desiredCameraX - this.camera.position.x) * Math.min(1, dt * 2.8);
     this.camera.lookAt(this.player.group.position.x * 0.16, 1.45, -10);
     this.renderer.render(this.scene, this.camera);
+    this.quality?.update(dt);
   }
 }
