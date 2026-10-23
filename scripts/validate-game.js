@@ -75,7 +75,7 @@ if (process.env.RUN_GAME_E2E === '1') {
     }, null, { timeout: 10000 });
 
     const questionText = await page.locator('#question').innerText();
-    const match = questionText.match(/(\\d+)\\s*([+\\-−×÷^])\\s*(\\d+)/);
+    const match = questionText.match(/(\d+)\s*([+\-−×÷^])\s*(\d+)/);
     assert.ok(match, `Question should contain a supported arithmetic expression: ${questionText}`);
     const a = Number(match[1]);
     const b = Number(match[3]);
