@@ -6,31 +6,84 @@ export class Track {
     this.segmentLength = 20;
     this.segmentCount = 25;
     this.segments = [];
-    this.roadTexture = this.createRoadTexture();
+    this.roadTextures = this.createRoadTextures();
     this.build(0x343941);
   }
 
-  createRoadTexture() {
-    const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 1024;
-    const ctx = canvas.getContext('2d');
+  createRoadTextures() {
+    const width = this.scene.userData.lowPower ? 128 : 256;
+    const height = this.scene.userData.lowPower ? 512 : 1024;
+    const albedo = document.createElement('canvas');
+    albedo.width = width;
+    albedo.height = height;
+    const ctx = albedo.getContext('2d', { alpha: false });
     ctx.fillStyle = '#343941';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    // Subtle asphalt grain, generated locally (no remote texture dependency).
-    for (let i = 0; i < 6500; i++) {
-      const shade = 38 + Math.floor(Math.random() * 48);
-      ctx.fillStyle = `rgba(${shade},${shade},${shade},${Math.random() * 0.23})`;
-      const size = Math.random() * 2 + 0.4;
-      ctx.fillRect(Math.random() * canvas.width, Math.random() * canvas.height, size, size);
+    ctx.fillRect(0, 0, width, height);
+
+    const heightData = new Uint8Array(width * height);
+    for (let i = 0; i < heightData.length; i++) {
+      heightData[i] = 90 + Math.floor(Math.random() * 90);
     }
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(1, 2);
-    texture.anisotropy = 4;
-    return texture;
+    const image = ctx.createImageData(width, height);
+    const roughCanvas = document.createElement('canvas');
+    roughCanvas.width = width;
+    roughCanvas.height = height;
+    const roughCtx = roughCanvas.getContext('2d', { alpha: false });
+    const roughImage = roughCtx.createImageData(width, height);
+    const normalImage = ctx.createImageData(width, height);
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const i = y * width + x;
+        const noise = heightData[i];
+        const grain = Math.random() * 34;
+        const shade = Math.max(0, Math.min(255, 43 + (noise - 135) * 0.16 + grain));
+        image.data[i * 4] = shade * 0.88;
+        image.data[i * 4 + 1] = shade * 0.92;
+        image.data[i * 4 + 2] = shade;
+        image.data[i * 4 + 3] = 255;
+
+        const rough = 190 + Math.floor(Math.random() * 60);
+        roughImage.data[i * 4] = rough;
+        roughImage.data[i * 4 + 1] = rough;
+        roughImage.data[i * 4 + 2] = rough;
+        roughImage.data[i * 4 + 3] = 255;
+
+        const left = heightData[y * width + Math.max(0, x - 1)];
+        const right = heightData[y * width + Math.min(width - 1, x + 1)];
+        const up = heightData[Math.max(0, y - 1) * width + x];
+        const down = heightData[Math.min(height - 1, y + 1) * width + x];
+        const nx = (left - right) * 0.65;
+        const ny = (up - down) * 0.65;
+        const nz = 255;
+        const length = Math.hypot(nx, ny, nz) || 1;
+        normalImage.data[i * 4] = 128 + (nx / length) * 127;
+        normalImage.data[i * 4 + 1] = 128 + (ny / length) * 127;
+        normalImage.data[i * 4 + 2] = 128 + (nz / length) * 127;
+        normalImage.data[i * 4 + 3] = 255;
+      }
+    }
+    ctx.putImageData(image, 0, 0);
+    const normalCanvas = document.createElement('canvas');
+    normalCanvas.width = width;
+    normalCanvas.height = height;
+    normalCanvas.getContext('2d', { alpha: false }).putImageData(normalImage, 0, 0);
+    roughCtx.putImageData(roughImage, 0, 0);
+
+    const makeTexture = (canvas, color = false) => {
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      texture.repeat.set(1, 2);
+      texture.anisotropy = this.scene.userData.lowPower ? 1 : 4;
+      if (color) texture.colorSpace = THREE.SRGBColorSpace;
+      return texture;
+    };
+    return {
+      albedo: makeTexture(albedo, true),
+      normal: makeTexture(normalCanvas),
+      roughness: makeTexture(roughCanvas)
+    };
   }
 
   build(groundColor) {
@@ -47,7 +100,7 @@ export class Track {
     if (this.reflectorMaterial) this.reflectorMaterial.dispose();
 
     this.roadMaterial = new THREE.MeshStandardMaterial({
-      color: groundColor, map: this.roadTexture, roughness: 0.94, metalness: 0.02
+      color: groundColor, map: this.roadTextures.albedo, normalMap: this.roadTextures.normal, roughnessMap: this.roadTextures.roughness, normalScale: new THREE.Vector2(0.22, 0.22), roughness: 0.94, metalness: 0.02
     });
     this.shoulderMaterial = new THREE.MeshStandardMaterial({ color: 0x686b70, roughness: 1 });
     this.lineMaterial = new THREE.MeshStandardMaterial({ color: 0xe8e5d8, roughness: 0.72 });
