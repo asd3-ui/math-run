@@ -175,21 +175,51 @@ export class Environment {
     this.disposeGroup(this.backdrop);
     this.clouds = [];
     this.landmarks = [];
+    this.animatedLandmarks = [];
+    this.eventLight = null;
     this.addSky(worldData);
 
     const id = worldData.id || 1;
     const lowPower = Boolean(this.scene.userData.lowPower);
     if (id === 1) {
+      const sun = new THREE.Mesh(new THREE.SphereGeometry(7, 20, 14), new THREE.MeshBasicMaterial({ color: 0xffe8a3, fog: false }));
+      sun.position.set(-42, 34, -260);
+      sun.userData.eventType = 'sun';
+      this.backdrop.add(sun);
+      this.animatedLandmarks.push(sun);
       this.addMountainRange(-1, 0x63826f, -300, 26, 1);
       this.addMountainRange(1, 0x3e665b, -390, 38, 4);
       this.addMountainRange(1, 0x9bb8a5, -245, 15, 7);
       for (let i = 0; i < (lowPower ? 4 : 7); i++) this.addCloud(-48 + Math.random() * 96, 24 + Math.random() * 22, -130 - Math.random() * 260, 1.5 + Math.random() * 2.4, 0xf5fbff);
     } else if (id === 2) {
+      const dustVortex = new THREE.Mesh(
+        new THREE.TorusGeometry(5.5, 0.38, 8, 42),
+        new THREE.MeshBasicMaterial({ color: 0xf3c47c, transparent: true, opacity: 0.42, side: THREE.DoubleSide })
+      );
+      dustVortex.position.set(24, 3.5, -205);
+      dustVortex.rotation.x = Math.PI / 2.5;
+      dustVortex.userData.eventType = 'dust';
+      this.backdrop.add(dustVortex);
+      this.animatedLandmarks.push(dustVortex);
       this.addMountainRange(-1, 0xc28e60, -280, 25, 3);
       this.addMountainRange(1, 0xe1b97f, -390, 42, 8);
       this.addMountainRange(1, 0xd4a06e, -225, 14, 2);
       for (let i = 0; i < (lowPower ? 3 : 5); i++) this.addCloud(-44 + Math.random() * 88, 28 + Math.random() * 15, -160 - Math.random() * 230, 1.1 + Math.random() * 2, 0xffedcf);
     } else if (id === 3) {
+      const beacon = new THREE.Group();
+      for (let i = 0; i < 3; i++) {
+        const halo = new THREE.Mesh(
+          new THREE.TorusGeometry(5 + i * 2.2, 0.12, 8, 56),
+          new THREE.MeshBasicMaterial({ color: i % 2 ? 0xff3bd4 : 0x30eaff, transparent: true, opacity: 0.78 })
+        );
+        halo.rotation.x = Math.PI / 2 + i * 0.22;
+        halo.rotation.y = i * 0.45;
+        beacon.add(halo);
+      }
+      beacon.position.set(0, 19, -190);
+      beacon.userData.eventType = 'beacon';
+      this.backdrop.add(beacon);
+      this.animatedLandmarks.push(beacon);
       const buildingColors = [0x182544, 0x202b4a, 0x30305c, 0x1b3b52];
       for (let i = 0; i < (lowPower ? 18 : 34); i++) {
         const side = i % 2 ? 1 : -1;
@@ -216,6 +246,8 @@ export class Environment {
       ring.position.copy(planet.position);
       ring.rotation.set(1.05, 0.2, -0.28);
       this.backdrop.add(ring);
+      ring.userData.eventType = 'planet-ring';
+      this.animatedLandmarks.push(ring);
       ring.userData.parallax = 0.01;
       for (let i = 0; i < (lowPower ? 8 : 15); i++) {
         const rock = this.addMesh(this.backdrop, this.sharedGeometries.rock, this.sharedMaterials.rock,
@@ -230,6 +262,7 @@ export class Environment {
       const glow = new THREE.PointLight(0xff4b14, 65, 220, 2);
       glow.position.set(0, 20, -180);
       this.backdrop.add(glow);
+      this.eventLight = glow;
       for (let i = 0; i < (lowPower ? 6 : 10); i++) {
         const volcano = this.addMesh(this.backdrop, this.sharedGeometries.lava, this.sharedMaterials.lava,
           (Math.random() - 0.5) * 95, 8 + Math.random() * 12, -110 - Math.random() * 280,
@@ -370,6 +403,19 @@ export class Environment {
         if (object.position.z > 30) object.position.z -= 440;
       }
     }
+    for (const landmark of this.animatedLandmarks || []) {
+      const type = landmark.userData.eventType;
+      if (type === 'sun') landmark.scale.setScalar(1 + Math.sin(this.elapsed * 0.7) * 0.025);
+      else if (type === 'dust') {
+        landmark.rotation.z += dt * 0.75;
+        landmark.scale.y = 0.8 + Math.sin(this.elapsed * 2.2) * 0.18;
+      } else if (type === 'beacon') {
+        landmark.rotation.y += dt * 0.22;
+        landmark.rotation.z = Math.sin(this.elapsed * 0.45) * 0.08;
+      } else if (type === 'planet-ring') landmark.rotation.z += dt * 0.035;
+    }
+    if (this.eventLight) this.eventLight.intensity = 55 + (Math.sin(this.elapsed * 3.1) + 1) * 9;
+
     for (const prop of this.props) {
       prop.position.z += speed * dt;
       if (prop.position.z > 24) prop.position.z -= 620;
