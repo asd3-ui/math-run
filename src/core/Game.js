@@ -43,6 +43,7 @@ export class Game {
     // Shadow maps are intentionally smaller on mobile to keep frame time stable.
     this.renderer.domElement.style.touchAction = 'none';
 
+    this.scene.userData.lowPower = this.isMobile;
     this.env = new Environment(this.scene);
     this.env.dirLight.shadow.mapSize.set(this.isMobile ? 1024 : 2048, this.isMobile ? 1024 : 2048);
     this.track = new Track(this.scene);
