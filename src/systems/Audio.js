@@ -1,13 +1,13 @@
 export class AudioSystem {
   constructor() {
     this.ctx = null;
+    this.masterGain = null;
     this.musicGain = null;
     this.sfxGain = null;
-    this.musicTimer = null;
-    this.musicPlaying = false;
-    this.enabled = true;
-    this.musicNotes = [261.63, 329.63, 392.00, 523.25, 392.00, 329.63]; // C E G C G E
-    this.musicIndex = 0;
+    this.musicInterval = null;
+    this.isPlayingMusic = false;
+    this.tempo = 120; 
+    this.step = 0;
   }
 
   ensure() {
@@ -20,11 +20,11 @@ export class AudioSystem {
     this.masterGain.connect(this.ctx.destination);
 
     this.sfxGain = this.ctx.createGain();
-    this.sfxGain.gain.value = 0.8;
+    this.sfxGain.gain.value = 0.6;
     this.sfxGain.connect(this.masterGain);
 
     this.musicGain = this.ctx.createGain();
-    this.musicGain.gain.value = 0.15;
+    this.musicGain.gain.value = 0.2;
     this.musicGain.connect(this.masterGain);
   }
 
@@ -34,82 +34,80 @@ export class AudioSystem {
   }
 
   beep(freq, duration, type = 'sine', gain = 0.1) {
-    if (!this.enabled) return;
     this.ensure();
     if (!this.ctx) return;
-    const ctx = this.ctx;
-    if (ctx.state === 'suspended') ctx.resume();
-    const osc = ctx.createOscillator();
-    const g = ctx.createGain();
+    const osc = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
     osc.type = type;
     osc.frequency.value = freq;
-    g.gain.setValueAtTime(0, ctx.currentTime);
-    g.gain.linearRampToValueAtTime(gain, ctx.currentTime + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+    g.gain.setValueAtTime(0, this.ctx.currentTime);
+    g.gain.linearRampToValueAtTime(gain, this.ctx.currentTime + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
     osc.connect(g).connect(this.sfxGain);
     osc.start();
-    osc.stop(ctx.currentTime + duration);
+    osc.stop(this.ctx.currentTime + duration);
   }
 
-  correct() {
-    if (!this.enabled) return;
-    this.beep(659, 0.12);
-    setTimeout(() => this.beep(880, 0.14), 100);
-    setTimeout(() => this.beep(1109, 0.18), 220);
-  }
+  // مؤثرات صوتية
+  correct() { this.beep(880, 0.1, 'triangle', 0.15); setTimeout(() => this.beep(1108, 0.15, 'triangle', 0.15), 80); }
+  wrong() { this.beep(150, 0.2, 'sawtooth', 0.2); setTimeout(() => this.beep(100, 0.3, 'sawtooth', 0.2), 150); }
+  coin() { this.beep(1500, 0.05, 'square', 0.08); }
+  powerup() { [440, 554, 659, 880].forEach((f, i) => setTimeout(() => this.beep(f, 0.1, 'sine', 0.1), i * 50)); }
+  click() { this.beep(600, 0.05, 'square', 0.05); }
+  bump() { this.beep(80, 0.3, 'sawtooth', 0.3); }
+  victory() { [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => this.beep(f, 0.2, 'square', 0.1), i * 100)); }
+  gameOver() { [300, 250, 200, 150].forEach((f, i) => setTimeout(() => this.beep(f, 0.3, 'sawtooth', 0.15), i * 150)); }
 
-  wrong() {
-    if (!this.enabled) return;
-    this.beep(220, 0.15, 'sawtooth', 0.09);
-    setTimeout(() => this.beep(160, 0.22, 'sawtooth', 0.09), 140);
-    setTimeout(() => this.beep(110, 0.3, 'sawtooth', 0.09), 320);
-  }
-
-  coin() { this.beep(1200, 0.06, 'triangle', 0.06); setTimeout(() => this.beep(1600, 0.08, 'triangle', 0.05), 50); }
-  powerup() {
-    [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => this.beep(f, 0.1, 'sine', 0.08), i * 60));
-  }
-  click() { this.beep(880, 0.05, 'square', 0.05); }
-  bump() { this.beep(120, 0.2, 'sawtooth', 0.12); }
-
-  victory() {
-    const notes = [523.25, 659.25, 783.99, 1046.50, 783.99, 1046.50, 1318.51];
-    notes.forEach((f, i) => setTimeout(() => this.beep(f, 0.2, 'sine', 0.1), i * 120));
-  }
-
-  gameOver() {
-    const notes = [523.25, 440, 349.23, 261.63];
-    notes.forEach((f, i) => setTimeout(() => this.beep(f, 0.35, 'sine', 0.1), i * 180));
-  }
-
-  startMusic() {
-    if (!this.enabled || this.musicPlaying) return;
+  // محرك الموسيقى الديناميكية
+  startMusic(speedLevel = 1) {
     this.ensure();
-    if (!this.ctx) return;
-    this.musicPlaying = true;
-    const playNote = () => {
-      if (!this.musicPlaying || !this.ctx) return;
-      const freq = this.musicNotes[this.musicIndex % this.musicNotes.length];
-      this.musicIndex++;
-      const osc = this.ctx.createOscillator();
-      const g = this.ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.value = freq;
-      g.gain.setValueAtTime(0, this.ctx.currentTime);
-      g.gain.linearRampToValueAtTime(0.5, this.ctx.currentTime + 0.05);
-      g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.6);
-      osc.connect(g).connect(this.musicGain);
-      osc.start();
-      osc.stop(this.ctx.currentTime + 0.6);
-      this.musicTimer = setTimeout(playNote, 400);
+    if (!this.ctx || this.isPlayingMusic) return;
+    this.isPlayingMusic = true;
+    this.tempo = 110 + (speedLevel * 5); 
+    
+    // نمط موسيقى Synthwave (Baseline + Arpeggio)
+    const bassNotes = [110.00, 110.00, 130.81, 146.83]; // A2, C3, D3
+    const arpNotes = [440.00, 523.25, 659.25, 880.00, 659.25, 523.25]; // A4, C5, E5, A5
+    
+    const playStep = () => {
+      if (!this.isPlayingMusic) return;
+      
+      const time = this.ctx.currentTime;
+      const stepDuration = 60 / this.tempo / 2; // 8th notes
+
+      // الباص (في كل نبضة)
+      if (this.step % 2 === 0) {
+        const bassOsc = this.ctx.createOscillator();
+        const bassGain = this.ctx.createGain();
+        bassOsc.type = 'sawtooth';
+        bassOsc.frequency.value = bassNotes[Math.floor(this.step / 8) % bassNotes.length];
+        bassGain.gain.setValueAtTime(0.3, time);
+        bassGain.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
+        bassOsc.connect(bassGain).connect(this.musicGain);
+        bassOsc.start(); bassOsc.stop(time + 0.2);
+      }
+
+      // اللحن (في كل خطوة)
+      const arpOsc = this.ctx.createOscillator();
+      const arpGain = this.ctx.createGain();
+      arpOsc.type = 'square';
+      arpOsc.frequency.value = arpNotes[this.step % arpNotes.length];
+      arpGain.gain.setValueAtTime(0.1, time);
+      arpGain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
+      arpOsc.connect(arpGain).connect(this.musicGain);
+      arpOsc.start(); arpOsc.stop(time + 0.1);
+
+      this.step++;
+      setTimeout(playStep, stepDuration * 1000);
     };
-    playNote();
+    playStep();
+  }
+
+  setMusicTempo(speed) {
+    this.tempo = 110 + speed * 2; // تزيد السرعة مع تقدم اللعبة
   }
 
   stopMusic() {
-    this.musicPlaying = false;
-    if (this.musicTimer) { clearTimeout(this.musicTimer); this.musicTimer = null; }
+    this.isPlayingMusic = false;
   }
-
-  setEnabled(v) { this.enabled = v; if (!v) this.stopMusic(); }
 }
