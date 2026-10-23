@@ -83,13 +83,14 @@ html, body {
   z-index: 7; backdrop-filter: blur(6px);
 }
 
+/* 🟢 تم تعديل هذا القسم لحل مشكلة تغطية الـ Combo */
 .combo-badge {
-  position: fixed; top: 90px; left: 50%; transform: translateX(-50%);
+  position: fixed; bottom: 150px; left: 50%; transform: translateX(-50%);
   background: linear-gradient(135deg, #fbbf24, #f97316);
-  padding: 8px 22px; border-radius: 30px;
-  font-weight: 900; font-size: 22px; color: #fff;
+  padding: 6px 18px; border-radius: 30px;
+  font-weight: 900; font-size: 18px; color: #fff;
   box-shadow: 0 4px 20px rgba(251, 191, 36, 0.7);
-  animation: comboPulse 0.5s ease;
+  animation: comboPulse 0.5s ease; z-index: 10;
 }
 @keyframes comboPulse {
   0% { transform: translateX(-50%) scale(0.6); }
@@ -164,7 +165,7 @@ html, body {
 }
 
 .levels-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(95px, 1fr));
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
   gap: 12px; margin-bottom: 20px;
 }
 .level-btn {
@@ -174,8 +175,8 @@ html, body {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   font-family: inherit; transition: all 0.15s; padding: 6px;
 }
-.level-btn .num { font-size: 26px; font-weight: 900; }
-.level-btn .name { font-size: 11px; opacity: 0.85; margin-top: 2px; }
+.level-btn .num { font-size: 24px; font-weight: 900; }
+.level-btn .name { font-size: 10px; opacity: 0.85; margin-top: 2px; }
 .level-btn:active { transform: scale(0.95); }
 .level-btn.locked { opacity: 0.3; cursor: not-allowed; border-color: #555; }
 
@@ -209,6 +210,8 @@ html, body {
 @media (max-width: 480px) {
   .powerups { bottom: 66px; }
   .powerup-btn { width: 50px; height: 50px; font-size: 20px; }
-  .combo-badge { top: 78px; font-size: 18px; }
+  .combo-badge { bottom: 135px; font-size: 16px; } /* تعديل موضع الكومبو للجوال */
   .pause-btn { width: 42px; height: 42px; font-size: 17px; }
+  .levels-grid { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); }
+  .level-btn .num { font-size: 20px; }
 }
