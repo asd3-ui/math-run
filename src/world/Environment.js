@@ -1,132 +1,97 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 export class Environment {
   constructor(scene) {
     this.scene = scene;
     this.props = [];
-    this.currentWorldId = 1;
+    this.worldId = 1;
     
-    // إضاءة أساسية
-    this.ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    // الإضاءة والظلال
+    this.ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
     scene.add(this.ambientLight);
-
+    
     this.dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
-    this.dirLight.position.set(20, 40, 20);
+    this.dirLight.position.set(30, 50, 20);
     this.dirLight.castShadow = true;
-    this.dirLight.shadow.mapSize.width = 1024;
-    this.dirLight.shadow.mapSize.height = 1024;
-    this.dirLight.shadow.camera.near = 0.5;
-    this.dirLight.shadow.camera.far = 100;
-    this.dirLight.shadow.camera.left = -30;
-    this.dirLight.shadow.camera.right = 30;
-    this.dirLight.shadow.camera.top = 30;
-    this.dirLight.shadow.camera.bottom = -30;
+    this.dirLight.shadow.mapSize.width = 2048;
+    this.dirLight.shadow.mapSize.height = 2048;
+    this.dirLight.shadow.camera.left = -50;
+    this.dirLight.shadow.camera.right = 50;
+    this.dirLight.shadow.camera.top = 50;
+    this.dirLight.shadow.camera.bottom = -50;
+    this.dirLight.shadow.bias = -0.0005;
     scene.add(this.dirLight);
 
-    // ضباب
-    this.scene.fog = new THREE.FogExp2(0xffffff, 0.01);
-    
-    // سماء متدرجة (Sky Dome)
-    const skyGeo = new THREE.SphereGeometry(400, 32, 15);
-    this.skyMat = new THREE.ShaderMaterial({
-      uniforms: {
-        topColor: { value: new THREE.Color(0x4a90e2) },
-        bottomColor: { value: new THREE.Color(0xd8ebff) },
-        offset: { value: 33 },
-        exponent: { value: 0.6 }
-      },
-      vertexShader: `
-        varying vec3 vWorldPosition;
-        void main() {
-          vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-          vWorldPosition = worldPosition.xyz;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: `
-        uniform vec3 topColor;
-        uniform vec3 bottomColor;
-        uniform float offset;
-        uniform float exponent;
-        varying vec3 vWorldPosition;
-        void main() {
-          float h = normalize(vWorldPosition + offset).y;
-          gl_FragColor = vec4(mix(bottomColor, topColor, max(pow(max(h, 0.0), exponent), 0.0)), 1.0);
-        }
-      `,
-      side: THREE.BackSide
-    });
-    this.sky = new THREE.Mesh(skyGeo, this.skyMat);
-    scene.add(this.sky);
+    // ضباب واقعي
+    this.scene.fog = new THREE.FogExp2(0x87ceeb, 0.015);
+
+    // مجسمات حقيقية (GLTF)
+    this.models = { tree: null, rock: null, neon: null };
+    this.loadModels();
+  }
+
+  loadModels() {
+    const loader = new GLTFLoader();
+    // روابط لمجسمات احترافية (شجرة، صخرة، عمود نيون)
+    const urls = {
+      tree: 'https://threejs.org/examples/models/gltf/Tree.glb',
+      rock: 'https://threejs.org/examples/models/gltf/Rock.glb',
+      neon: 'https://threejs.org/examples/models/gltf/Neon.glb'
+    };
+
+    loader.load(urls.tree, (gltf) => { this.models.tree = gltf.scene; this.populateProps(); });
+    loader.load(urls.rock, (gltf) => { this.models.rock = gltf.scene; this.populateProps(); });
   }
 
   setEnvironment(worldData) {
-    this.currentWorldId = worldData.id;
-    
-    // تحديث الألوان
-    this.skyMat.uniforms.topColor.value.setHex(worldData.skyTop);
-    this.skyMat.uniforms.bottomColor.value.setHex(worldData.skyBottom);
+    this.worldId = worldData.id;
+    this.scene.background = new THREE.Color(worldData.skyBottom);
     this.scene.fog.color.setHex(worldData.fog);
     this.scene.fog.density = worldData.fogDensity;
     
     this.ambientLight.color.setHex(worldData.ambient);
     this.dirLight.color.setHex(worldData.lightColor);
+    
+    this.populateProps();
+  }
 
-    // مسح العناصر القديمة
+  populateProps() {
+    // مسح القديم
     this.props.forEach(p => {
       this.scene.remove(p);
-      p.traverse(o => {
-        if (o.geometry) o.geometry.dispose();
-        if (o.material) o.material.dispose();
-      });
+      // لا نقوم بحذف الـ geometry/material لأنها مشتركة في GLTF
     });
     this.props = [];
 
-    this.generateProps(worldData.obstacleType);
-  }
+    // اختيار المجسم المناسب للبيئة
+    let model = this.models.tree;
+    if (this.worldId === 2) model = this.models.rock;
+    else if (this.worldId === 3) model = this.models.neon;
 
-  generateProps(type) {
-    // مواد مختلفة لكل بيئة
-    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5c3a21, roughness: 0.9 });
-    const leafMat = new THREE.MeshStandardMaterial({ color: 0x228b22, roughness: 0.6 });
-    const rockMat = new THREE.MeshStandardMaterial({ color: 0x8a7a6a, roughness: 1.0 });
-    const neonMat = new THREE.MeshStandardMaterial({ color: 0xff00ff, emissive: 0xff00ff, emissiveIntensity: 2 });
-    const spaceMat = new THREE.MeshStandardMaterial({ color: 0x555566, roughness: 0.9 });
-    const lavaMat = new THREE.MeshStandardMaterial({ color: 0xff4500, emissive: 0xff4500, emissiveIntensity: 1.5 });
+    if (!model) return; // انتظر التحميل
 
-    for (let i = 0; i < 70; i++) {
+    for (let i = 0; i < 60; i++) {
+      const clone = model.clone();
       const side = Math.random() < 0.5 ? -1 : 1;
-      const x = side * (7 + Math.random() * 20);
+      const x = side * (8 + Math.random() * 25);
       const z = -Math.random() * 600;
-      let prop = new THREE.Group();
-
-      if (type === 'tree') {
-        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.5, 2.5), trunkMat);
-        trunk.position.y = 1.25; trunk.castShadow = true;
-        const leaf = new THREE.Mesh(new THREE.DodecahedronGeometry(1.8 + Math.random()*0.5), leafMat);
-        leaf.position.y = 3.5; leaf.castShadow = true;
-        prop.add(trunk, leaf);
-      } else if (type === 'rock') {
-        const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(1.5 + Math.random()*2), rockMat);
-        rock.position.y = 0.5; rock.castShadow = true; rock.receiveShadow = true;
-        prop.add(rock);
-      } else if (type === 'neon') {
-        const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.8, 6 + Math.random()*4, 0.8), neonMat);
-        pillar.position.y = 3; pillar.castShadow = true;
-        prop.add(pillar);
-      } else if (type === 'asteroid') {
-        const ast = new THREE.Mesh(new THREE.IcosahedronGeometry(1 + Math.random()*2, 1), spaceMat);
-        ast.position.y = 1.5; ast.castShadow = true;
-        prop.add(ast);
-      } else if (type === 'lava') {
-        const lRock = new THREE.Mesh(new THREE.ConeGeometry(1.5, 4, 5), lavaMat);
-        lRock.position.y = 2; lRock.castShadow = true;
-        prop.add(lRock);
-      }
-
-      prop.position.set(x, 0, z);
-      this.scene.add(prop);
-      this.props.push(prop);
+      
+      // تكبير/تصغير عشوائي
+      const scale = 1 + Math.random() * 1.5;
+      clone.scale.set(scale, scale, scale);
+      clone.position.set(x, 0, z);
+      clone.rotation.y = Math.random() * Math.PI * 2;
+      
+      clone.traverse(o => {
+        if (o.isMesh) {
+          o.castShadow = true;
+          o.receiveShadow = true;
+        }
+      });
+      
+      this.scene.add(clone);
+      this.props.push(clone);
     }
   }
 
