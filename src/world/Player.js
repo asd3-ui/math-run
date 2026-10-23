@@ -115,8 +115,10 @@ export class Player {
   }
 
   setCharacter(cfg) {
+    this.modelMixer?.stopAllAction();
+    this.modelMixer = null;
+    this.modelRoot = null;
     this.buildBody(cfg);
-    if (this.modelRoot) this.modelRoot.visible = false;
   }
 
   /**
@@ -173,7 +175,10 @@ export class Player {
   }
 
   update(dt, speed, alive) {
-    if (this.modelMixer) this.modelMixer.update(dt);
+    if (this.modelMixer) {
+      this.modelMixer.timeScale = alive ? 1 : 0.12;
+      this.modelMixer.update(dt);
+    }
     if (this.modelRoot) this.modelRoot.visible = true;
     const diff = this.targetX - this.x;
     this.x += diff * Math.min(1, dt * 10);
