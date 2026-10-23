@@ -1,0 +1,9 @@
+{
+  "appId": "com.asd3ui.mathrun",
+  "appName": "سباق الرياضيات 3D",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "android": {
+    "allowMixedContent": false
+  }
+}
