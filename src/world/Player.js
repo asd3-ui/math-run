@@ -39,6 +39,7 @@ export class Player {
 
     const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.38, 0.72, 6, 12), bodyMat);
     torso.position.y = 1.38;
+    this.torso = torso;
     torso.castShadow = true;
     torso.receiveShadow = true;
     this.group.add(torso);
@@ -49,6 +50,7 @@ export class Player {
 
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.37, 24, 18), skinMat);
     head.position.y = 2.22;
+    this.head = head;
     head.castShadow = true;
     this.group.add(head);
 
@@ -102,6 +104,7 @@ export class Player {
 
     // Small backpack silhouette gives the runner depth from the follow camera.
     const pack = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.48, 0.22), bodyMat);
+    pack.material = bodyMat;
     pack.position.set(0, 1.4, 0.38);
     pack.castShadow = true;
     this.group.add(pack);
@@ -132,16 +135,36 @@ export class Player {
 
     if (alive) {
       this.runTime += dt * (speed * 0.34);
-      const swing = Math.sin(this.runTime) * 0.78;
+      const stride = this.runTime;
+      const swing = Math.sin(stride) * 0.82;
       this.legPivots[0].rotation.x = swing;
       this.legPivots[1].rotation.x = -swing;
       this.armPivots[0].rotation.x = -swing * 0.85;
       this.armPivots[1].rotation.x = swing * 0.85;
-      this.group.position.y = Math.abs(Math.sin(this.runTime * 2)) * 0.09;
+      const bounce = Math.abs(Math.sin(stride * 2)) * 0.095;
+      this.group.position.y = bounce;
+      if (this.torso) {
+        this.torso.rotation.z = Math.sin(stride) * 0.035;
+        this.torso.rotation.x = Math.cos(stride * 2) * 0.025;
+      }
+      if (this.head) {
+        this.head.rotation.z = Math.sin(stride * 0.5) * 0.025;
+        this.head.position.y = 2.22 + bounce * 0.22;
+      }
+      this.group.rotation.y += (Math.sin(stride * 0.5) * 0.035 - this.group.rotation.y) * Math.min(1, dt * 4);
     } else {
       for (const pivot of this.legPivots) pivot.rotation.x *= Math.max(0, 1 - dt * 8);
       for (const pivot of this.armPivots) pivot.rotation.x *= Math.max(0, 1 - dt * 8);
       this.group.position.y *= Math.max(0, 1 - dt * 8);
+      if (this.torso) {
+        this.torso.rotation.z *= Math.max(0, 1 - dt * 8);
+        this.torso.rotation.x *= Math.max(0, 1 - dt * 8);
+      }
+      if (this.head) {
+        this.head.rotation.z *= Math.max(0, 1 - dt * 8);
+        this.head.position.y += (2.22 - this.head.position.y) * Math.min(1, dt * 8);
+      }
+      this.group.rotation.y *= Math.max(0, 1 - dt * 4);
     }
   }
 }
