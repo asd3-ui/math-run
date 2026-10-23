@@ -389,7 +389,7 @@ export class Game {
     this.player.update(dt, effectiveSpeed, true);
     this.particles.update(dt, effectiveSpeed);
 
-    if (this.gate) {
+    if (this.gate && this.gate.group.visible) {
       this.gate.group.position.z += effectiveSpeed * dt;
       if (this.obstacle) this.obstacle.group.position.z += effectiveSpeed * dt;
 
