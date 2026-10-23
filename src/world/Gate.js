@@ -64,16 +64,45 @@ export class Gate {
         side: THREE.DoubleSide
       });
 
+      const laneX = (i - 1) * 3;
       const panel = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 2.6), mat);
-      panel.position.set((i - 1) * 3, 2.4, 0);
+      panel.position.set(laneX, 2.4, 0);
+      panel.castShadow = true;
       this.group.add(panel);
       this.panels.push(panel);
 
+      // Three dimensional answer portal: metallic frame, luminous rails and a heavy base.
+      const frameMaterial = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(colorHex), metalness: 0.68, roughness: 0.28,
+        emissive: new THREE.Color(colorHex), emissiveIntensity: 0.7
+      });
+      const trimMaterial = new THREE.MeshStandardMaterial({
+        color: 0xe9f6ff, metalness: 0.82, roughness: 0.22
+      });
+      for (const side of [-1, 1]) {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.14, 3.55, 0.22), frameMaterial);
+        post.position.set(laneX + side * 1.42, 1.82, -0.04);
+        post.castShadow = true;
+        this.group.add(post);
+        const innerLight = new THREE.Mesh(new THREE.BoxGeometry(0.045, 2.8, 0.035), trimMaterial);
+        innerLight.position.set(laneX + side * 1.31, 2.25, -0.17);
+        this.group.add(innerLight);
+      }
+      const header = new THREE.Mesh(new THREE.BoxGeometry(2.98, 0.16, 0.22), frameMaterial);
+      header.position.set(laneX, 3.58, -0.04);
+      header.castShadow = true;
+      this.group.add(header);
+      const headerGlow = new THREE.Mesh(new THREE.BoxGeometry(2.65, 0.045, 0.04), trimMaterial);
+      headerGlow.position.set(laneX, 3.58, -0.17);
+      this.group.add(headerGlow);
+
       const baseMat = new THREE.MeshStandardMaterial({
-        color: 0x1a1a2e, emissive: new THREE.Color(colorHex), emissiveIntensity: 0.4
+        color: 0x1a1a2e, metalness: 0.5, roughness: 0.34,
+        emissive: new THREE.Color(colorHex), emissiveIntensity: 0.4
       });
       const base = new THREE.Mesh(new THREE.BoxGeometry(2.75, 0.35, 0.7), baseMat);
-      base.position.set((i - 1) * 3, 0.175, 0);
+      base.position.set(laneX, 0.175, 0);
+      base.castShadow = true;
       this.group.add(base);
       this.bases.push(base);
     }
