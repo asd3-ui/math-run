@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { Worlds, LevelConfigs, EndlessConfig } from '../src/data/questions.js';
 import { Characters } from '../src/data/characters.js';
-import { calculateCoinReward, chooseWrongLane, evaluateGate } from '../src/systems/RunRules.js';
+import { QuestionSystem, calculateCoinReward, chooseWrongLane, evaluateGate } from '../src/systems/QuestionSystem.js';
 
 assert.equal(Worlds.length, 5, 'The game must retain all five worlds.');
 assert.equal(LevelConfigs.length, 100, 'The game must retain all 100 levels.');
@@ -27,4 +27,16 @@ assert.equal(calculateCoinReward(1), 15, 'First combo reward must be 15 coins.')
 assert.equal(calculateCoinReward(5), 35, 'Combo reward must scale consistently.');
 assert.equal(calculateCoinReward(-5), 10, 'Negative combos must not reduce the base reward.');
 
-console.log('Gameplay regression tests passed: 5 worlds, 100 levels, gates, obstacle lanes, combo rewards, endless mode, and characters.');
+// Exercise actual question generation to catch invalid answer arrays or answer indices.
+const questionSystem = new QuestionSystem();
+for (const level of LevelConfigs) {
+  for (let i = 0; i < 5; i++) {
+    const question = questionSystem.next(level);
+    assert.equal(question.answers.length, 3, 'Every question must present three answers.');
+    assert.equal(new Set(question.answers).size, 3, 'Answer options must be unique.');
+    assert.ok(question.correctIndex >= 0 && question.correctIndex < question.answers.length);
+    assert.equal(question.answers[question.correctIndex], question.answer, 'Correct answer index must match answer value.');
+  }
+}
+
+console.log('Gameplay regression tests passed: all worlds and levels, generated questions, answer indexing, gate/obstacle outcomes, combo rewards, endless mode, and characters.');
