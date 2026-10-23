@@ -9,7 +9,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "cap:sync": "cap sync android"
+    "cap:sync": "cap sync android",
+    "test": "node scripts/validate-game.js"
   },
   "dependencies": {
     "three": "^0.160.0",
