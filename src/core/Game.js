@@ -86,12 +86,13 @@ class AdaptiveQuality {
         `draw calls: ${info.render.calls} | triangles: ${info.render.triangles}`,
         `geometries: ${info.memory.geometries} | textures: ${info.memory.textures}`,
         heap
-      ].join('\\n');
+      ].join('\n');
       this.elapsed = 0;
     }
   }
 }
-\nexport class Game {
+
+export class Game {
   constructor({ hud, screens, audio, save }) {
     this.hud = hud;
     this.screens = screens;
