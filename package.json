@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "cap:sync": "cap sync android",
     "test": "node scripts/validate-game.js",
-    "android:icon": "node scripts/generate-android-icons.mjs"
+    "android:icon": "node scripts/generate-android-icons.mjs",
+    "test:e2e": "RUN_GAME_E2E=1 node scripts/validate-game.js"
   },
   "dependencies": {
     "three": "^0.160.0",
@@ -21,6 +22,7 @@
   "devDependencies": {
     "vite": "^5.0.0",
     "@capacitor/cli": "^7.0.0",
-    "@resvg/resvg-js": "^2.6.2"
+    "@resvg/resvg-js": "^2.6.2",
+    "playwright": "^1.56.1"
   }
 }
