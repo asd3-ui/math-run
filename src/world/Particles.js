@@ -5,6 +5,7 @@ export class Particles {
     this.scene = scene;
     this.systems = [];
     this.worldId = 1;
+    this.elapsed = 0;
 
     const starGeo = new THREE.BufferGeometry();
     const starCount = scene.userData.lowPower ? 180 : 420;
