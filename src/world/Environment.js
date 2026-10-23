@@ -155,7 +155,7 @@ export class Environment {
     for (const prop of this.props) this.scene.remove(prop);
     this.props = [];
 
-    const sideCount = 28;
+    const sideCount = this.scene.userData.lowPower ? 18 : 28;
     for (let i = 0; i < sideCount; i++) {
       for (const side of [-1, 1]) {
         const group = new THREE.Group();
