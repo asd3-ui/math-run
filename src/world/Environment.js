@@ -238,6 +238,42 @@ export class Environment {
           strip.userData.parallax = 0.03;
         }
       }
+      // Math Run 3D-inspired neon race gates: visual scenery only.
+      const gateColors = [0x30eaff, 0xff3bd4, 0xfacc15, 0xa78bfa];
+      for (let i = 0; i < (lowPower ? 4 : 7); i++) {
+        const gate = new THREE.Group();
+        const color = gateColors[i % gateColors.length];
+        const frameMat = new THREE.MeshStandardMaterial({ color: 0x10223f, metalness: 0.82, roughness: 0.22, emissive: 0x071a34, emissiveIntensity: 0.65 });
+        const glowMat = new THREE.MeshBasicMaterial({ color });
+        for (const x of [-5.25, 5.25]) {
+          const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.48, 7.3, 10), frameMat);
+          pillar.position.set(x, 3.65, 0); gate.add(pillar);
+          const strip = new THREE.Mesh(new THREE.BoxGeometry(0.13, 6.7, 0.18), glowMat);
+          strip.position.set(x < 0 ? x + 0.39 : x - 0.39, 3.65, 0.12); gate.add(strip);
+          const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(0.58), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1, metalness: 0.45, roughness: 0.2 }));
+          crystal.position.set(x, 7.9, 0); crystal.userData.gateCrystal = true; gate.add(crystal);
+        }
+        const arch = new THREE.Mesh(new THREE.TorusGeometry(5.25, 0.18, 8, 36, Math.PI), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.85, metalness: 0.55, roughness: 0.24 }));
+        arch.rotation.z = Math.PI; arch.position.y = 7.15; gate.add(arch);
+        const inner = new THREE.Mesh(new THREE.TorusGeometry(4.92, 0.055, 6, 36, Math.PI), new THREE.MeshBasicMaterial({ color: 0xe0faff }));
+        inner.rotation.z = Math.PI; inner.position.y = 7.15; gate.add(inner);
+        gate.position.set(0, 0, -42 - i * 46);
+        gate.userData.parallax = 0.82;
+        gate.userData.eventType = 'neon-race-gate';
+        this.backdrop.add(gate); this.animatedLandmarks.push(gate);
+      }
+      const particleCount = lowPower ? 80 : 150;
+      const particlePositions = new Float32Array(particleCount * 3);
+      for (let i = 0; i < particleCount; i++) {
+        particlePositions[i * 3] = (Math.random() - 0.5) * 26;
+        particlePositions[i * 3 + 1] = Math.random() * 18;
+        particlePositions[i * 3 + 2] = -Math.random() * 240;
+      }
+      const particleGeometry = new THREE.BufferGeometry();
+      particleGeometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+      const particles = new THREE.Points(particleGeometry, new THREE.PointsMaterial({ color: 0x67e8f9, size: 0.16, transparent: true, opacity: 0.68, depthWrite: false }));
+      particles.userData.eventType = 'race-particles';
+      this.backdrop.add(particles); this.animatedLandmarks.push(particles);
     } else if (id === 4) {
       const planetMat = new THREE.MeshStandardMaterial({ color: 0x4d5cb0, roughness: 0.88, metalness: 0.08 });
       const planet = this.addMesh(this.backdrop, new THREE.SphereGeometry(28, 28, 20), planetMat, 42, 35, -260);
@@ -412,6 +448,18 @@ export class Environment {
       } else if (type === 'beacon') {
         landmark.rotation.y += dt * 0.22;
         landmark.rotation.z = Math.sin(this.elapsed * 0.45) * 0.08;
+      } else if (type === 'neon-race-gate') {
+        landmark.rotation.y = Math.sin(this.elapsed * 0.65 + landmark.position.z) * 0.025;
+        for (const child of landmark.children) if (child.userData.gateCrystal) child.rotation.y += dt * 0.9;
+      } else if (type === 'race-particles') {
+        const positions = landmark.geometry.attributes.position.array;
+        for (let i = 0; i < positions.length; i += 3) {
+          positions[i + 1] += dt * 0.9;
+          positions[i + 2] += dt * 8;
+          if (positions[i + 1] > 19) positions[i + 1] = 0;
+          if (positions[i + 2] > 12) positions[i + 2] = -240;
+        }
+        landmark.geometry.attributes.position.needsUpdate = true;
       } else if (type === 'planet-ring') landmark.rotation.z += dt * 0.035;
     }
     if (this.eventLight) this.eventLight.intensity = 55 + (Math.sin(this.elapsed * 3.1) + 1) * 9;
