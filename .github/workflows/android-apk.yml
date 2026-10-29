@@ -1,0 +1,96 @@
+name: Android APK Build
+
+on:
+  push:
+    branches: [main, master]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-apk:
+    name: Validate and build Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package.json
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install npm dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Run gameplay regression tests
+        run: npm test
+
+      - name: Build web game
+        run: npm run build
+
+      - name: Verify built web entry point
+        run: |
+          test -s dist/index.html
+          echo "Built web output:"
+          find dist -maxdepth 2 -type f | sort | head -80
+
+      - name: Generate Android project if missing
+        shell: bash
+        run: |
+          if [ ! -f android/gradlew ]; then
+            echo "Android native project is missing; generating it with the installed Capacitor version."
+            npx cap add android
+          fi
+
+      - name: Sync Capacitor Android assets and plugins
+        run: npx cap sync android
+
+      - name: Verify Android Gradle wrapper
+        run: |
+          test -f android/gradlew
+          test -f android/gradle/wrapper/gradle-wrapper.properties
+          chmod +x android/gradlew
+
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew --no-daemon --stacktrace clean assembleDebug
+
+      - name: Verify APK output
+        shell: bash
+        run: |
+          APK_PATH="$(find android/app/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' -print -quit)"
+          if [ -z "$APK_PATH" ]; then
+            echo "::error::Gradle completed without producing a debug APK."
+            exit 1
+          fi
+          echo "APK_PATH=$APK_PATH" >> "$GITHUB_ENV"
+          ls -lh "$APK_PATH"
+
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: math-run-android-debug-apk
+          path: ${{ env.APK_PATH }}
+          if-no-files-found: error
+          retention-days: 14
