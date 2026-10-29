@@ -3,9 +3,6 @@ name: Android APK Build
 on:
   push:
     branches: [main, master]
-    paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
   pull_request:
     branches: [main, master]
   workflow_dispatch:
@@ -21,7 +18,7 @@ jobs:
   build-apk:
     name: Validate and build Android APK
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
 
     steps:
       - name: Checkout repository
@@ -31,8 +28,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-          cache-dependency-path: package.json
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -40,8 +35,21 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          sdkmanager --install "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          sdkmanager --list_installed
+
       - name: Install npm dependencies
-        run: npm install --no-audit --no-fund
+        run: |
+          node --version
+          npm --version
+          npm install --no-audit --no-fund
+          npm ls --depth=0
+          npx cap --version
 
       - name: Run gameplay regression tests
         run: npm test
@@ -55,26 +63,41 @@ jobs:
           echo "Built web output:"
           find dist -maxdepth 2 -type f | sort | head -80
 
+      - name: Verify Capacitor configuration and Android dependency
+        run: |
+          node --input-type=module -e "import config from './capacitor.config.json' with { type: 'json' }; if (!config.appId || !config.appName || config.webDir !== 'dist') process.exit(1); console.log(config)"
+          npm ls @capacitor/core @capacitor/cli @capacitor/android
+
       - name: Generate Android project if missing
         shell: bash
         run: |
-          if [ ! -f android/gradlew ]; then
-            echo "Android native project is missing; generating it with the installed Capacitor version."
+          if [ ! -f android/gradlew ] || [ ! -f android/gradle/wrapper/gradle-wrapper.properties ]; then
+            if [ -d android ]; then
+              echo "::error::The android/ directory exists but its Gradle wrapper is incomplete. Refusing to overwrite a potentially partial native project."
+              find android -maxdepth 3 -type f | sort | head -100
+              exit 1
+            fi
+            echo "Generating the native Android project using the installed Capacitor 7 dependency."
             npx cap add android
           fi
 
       - name: Sync Capacitor Android assets and plugins
         run: npx cap sync android
 
-      - name: Verify Android Gradle wrapper
+      - name: Verify Android project
         run: |
-          test -f android/gradlew
+          test -f android/settings.gradle || test -f android/settings.gradle.kts
+          test -f android/app/build.gradle || test -f android/app/build.gradle.kts
           test -f android/gradle/wrapper/gradle-wrapper.properties
+          test -f android/gradle/wrapper/gradle-wrapper.jar
           chmod +x android/gradlew
+          cat android/gradle/wrapper/gradle-wrapper.properties
 
       - name: Build debug APK
         working-directory: android
-        run: ./gradlew --no-daemon --stacktrace clean assembleDebug
+        env:
+          GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.parallel=false
+        run: ./gradlew --no-daemon --stacktrace --warning-mode all clean assembleDebug
 
       - name: Verify APK output
         shell: bash
@@ -82,9 +105,11 @@ jobs:
           APK_PATH="$(find android/app/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' -print -quit)"
           if [ -z "$APK_PATH" ]; then
             echo "::error::Gradle completed without producing a debug APK."
+            find android/app/build/outputs -maxdepth 5 -type f -print 2>/dev/null || true
             exit 1
           fi
           echo "APK_PATH=$APK_PATH" >> "$GITHUB_ENV"
+          sha256sum "$APK_PATH"
           ls -lh "$APK_PATH"
 
       - name: Upload installable APK
