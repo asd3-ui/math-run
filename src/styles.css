@@ -11,11 +11,34 @@ html, body {
 
 .hidden { display: none !important; }
 
+/* ==================== شريط حالة الشبكة ==================== */
+#offline-banner {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 90;
+  padding: calc(8px + env(safe-area-inset-top, 0px)) 14px 8px;
+  background: linear-gradient(135deg, #c0392b, #e74c3c);
+  color: #fff; font-size: 14px; font-weight: 700; text-align: center;
+  box-shadow: 0 4px 16px rgba(231, 76, 60, 0.5);
+  animation: slideDown 0.3s ease;
+}
+@keyframes slideDown { from { transform: translateY(-100%); } to { transform: translateY(0); } }
+
+/* ================= نافذة تأكيد الخروج ================= */
+.dialog-screen {
+  z-index: 80 !important;
+  background: rgba(5, 5, 15, 0.78) !important;
+  backdrop-filter: blur(6px);
+}
+
 /* ================= HUD ================= */
 #hud {
   position: fixed; inset: 0; z-index: 5; pointer-events: none;
   display: flex; flex-direction: column; justify-content: space-between;
-  padding: 14px;
+  /* دعم مناطق الأمان (النوتش والشريط السفلي) في الهواتف الحديثة */
+  padding:
+    calc(14px + env(safe-area-inset-top, 0px))
+    calc(14px + env(safe-area-inset-right, 0px))
+    calc(14px + env(safe-area-inset-bottom, 0px))
+    calc(14px + env(safe-area-inset-left, 0px));
 }
 
 .hud-top { display: flex; flex-direction: column; align-items: center; gap: 10px; }
@@ -56,7 +79,9 @@ html, body {
 }
 
 .powerups {
-  position: fixed; left: 50%; bottom: 78px; transform: translateX(-50%);
+  position: fixed; left: 50%;
+  bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
   display: flex; gap: 10px; pointer-events: auto; z-index: 6;
 }
 .powerup-btn {
@@ -76,7 +101,9 @@ html, body {
 }
 
 .pause-btn {
-  position: fixed; top: 14px; left: 14px;
+  position: fixed;
+  top: calc(14px + env(safe-area-inset-top, 0px));
+  left: calc(14px + env(safe-area-inset-left, 0px));
   width: 48px; height: 48px; border-radius: 50%;
   background: rgba(15, 15, 35, 0.85); border: 2px solid rgba(124, 92, 255, 0.5);
   color: #fff; font-size: 20px; cursor: pointer; pointer-events: auto;
@@ -85,7 +112,9 @@ html, body {
 
 /* 🟢 تم تعديل هذا القسم لحل مشكلة تغطية الـ Combo */
 .combo-badge {
-  position: fixed; bottom: 150px; left: 50%; transform: translateX(-50%);
+  position: fixed;
+  bottom: calc(150px + env(safe-area-inset-bottom, 0px));
+  left: 50%; transform: translateX(-50%);
   background: linear-gradient(135deg, #fbbf24, #f97316);
   padding: 6px 18px; border-radius: 30px;
   font-weight: 900; font-size: 18px; color: #fff;
@@ -103,7 +132,12 @@ html, body {
   position: fixed; inset: 0; z-index: 20;
   background: radial-gradient(circle at 50% 30%, #1a1a3e 0%, #05050f 100%);
   display: flex; align-items: center; justify-content: center;
-  padding: 20px; overflow-y: auto;
+  padding:
+    calc(20px + env(safe-area-inset-top, 0px))
+    calc(20px + env(safe-area-inset-right, 0px))
+    calc(20px + env(safe-area-inset-bottom, 0px))
+    calc(20px + env(safe-area-inset-left, 0px));
+  overflow-y: auto;
 }
 
 .panel {
@@ -208,9 +242,9 @@ html, body {
 .character-item.locked { opacity: 0.5; }
 
 @media (max-width: 480px) {
-  .powerups { bottom: 66px; }
+  .powerups { bottom: calc(66px + env(safe-area-inset-bottom, 0px)); }
   .powerup-btn { width: 50px; height: 50px; font-size: 20px; }
-  .combo-badge { bottom: 135px; font-size: 16px; } /* تعديل موضع الكومبو للجوال */
+  .combo-badge { bottom: calc(135px + env(safe-area-inset-bottom, 0px)); font-size: 16px; } /* تعديل موضع الكومبو للجوال */
   .pause-btn { width: 42px; height: 42px; font-size: 17px; }
   .levels-grid { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); }
   .level-btn .num { font-size: 20px; }
