@@ -8,6 +8,7 @@ export class AudioSystem {
     this.isPlayingMusic = false;
     this.tempo = 120; 
     this.step = 0;
+    this.muted = false;
   }
 
   ensure() {
@@ -16,7 +17,7 @@ export class AudioSystem {
     if (!Ctx) return;
     this.ctx = new Ctx();
     this.masterGain = this.ctx.createGain();
-    this.masterGain.gain.value = 0.9;
+    this.masterGain.gain.value = this.muted ? 0 : 0.9;
     this.masterGain.connect(this.ctx.destination);
 
     this.sfxGain = this.ctx.createGain();
@@ -33,9 +34,15 @@ export class AudioSystem {
     if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
   }
 
+  // كتم/فتح صوت اللعبة بالكامل (يستجيب لأزرار الصوت في الهاتف عبر قناة الوسائط)
+  setMuted(muted) {
+    this.muted = muted;
+    if (this.masterGain) this.masterGain.gain.value = muted ? 0 : 0.9;
+  }
+
   beep(freq, duration, type = 'sine', gain = 0.1) {
     this.ensure();
-    if (!this.ctx) return;
+    if (!this.ctx || this.muted) return;
     const osc = this.ctx.createOscillator();
     const g = this.ctx.createGain();
     osc.type = type;
