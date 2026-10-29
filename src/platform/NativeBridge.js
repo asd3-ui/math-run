@@ -1,7 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
-import { KeepAwake } from '@capacitor/keep-awake';
+import { KeepAwake } from '@capacitor-community/keep-awake';
 import { ScreenOrientation, OrientationType } from '@capacitor/screen-orientation';
 import { Network } from '@capacitor/network';
 import { StatusBar, Style } from '@capacitor/status-bar';
