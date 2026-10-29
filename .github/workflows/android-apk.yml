@@ -65,7 +65,7 @@ jobs:
 
       - name: Verify Capacitor configuration and Android dependency
         run: |
-          node --input-type=module -e "import config from './capacitor.config.json' with { type: 'json' }; if (!config.appId || !config.appName || config.webDir !== 'dist') process.exit(1); console.log(config)"
+          node --input-type=module -e "import fs from 'node:fs'; const config = JSON.parse(fs.readFileSync('capacitor.config.json', 'utf8')); if (!config.appId || !config.appName || config.webDir !== 'dist') process.exit(1); console.log(config)"
           npm ls @capacitor/core @capacitor/cli @capacitor/android
 
       - name: Generate Android project if missing
