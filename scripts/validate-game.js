@@ -68,6 +68,9 @@ if (process.env.RUN_GAME_E2E === '1') {
     const pageErrors = [];
     page.on('pageerror', (error) => pageErrors.push(error.message));
     await page.goto('http://127.0.0.1:4173/?e2e=1', { waitUntil: 'domcontentloaded' });
+    // The module entry point initializes the Three.js renderer asynchronously after DOMContentLoaded.
+    // Wait for the renderer before clicking so CI cannot race the event-handler registration.
+    await page.locator('#canvas-container canvas').waitFor({ state: 'attached', timeout: 20000 });
     await page.locator('#btn-play').click();
     await page.waitForFunction(() => {
       const hud = document.querySelector('#hud');
