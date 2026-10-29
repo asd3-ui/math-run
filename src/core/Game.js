@@ -98,6 +98,7 @@ export class Game {
     this.screens = screens;
     this.audio = audio;
     this.save = save;
+    this.bridge = null; // طبقة التكامل مع الهاتف (تُحقن عبر setBridge)
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 800);
@@ -160,6 +161,9 @@ export class Game {
     requestAnimationFrame(this.animate);
   }
 
+  // حقن طبقة التكامل مع الهاتف (زر الرجوع، الاهتزاز، دورة الحياة...)
+  setBridge(bridge) { this.bridge = bridge; }
+
   applySelectedCharacter() {
     const id = this.save.selectedCharacter || 'boy';
     const cfg = Characters.find(c => c.id === id) || Characters[0];
@@ -175,7 +179,11 @@ export class Game {
     el.addEventListener('touchmove', (e) => {
       if (moved) return;
       const dx = e.touches[0].clientX - startX;
-      if (Math.abs(dx) > 30) { this.player.moveLane(dx > 0 ? 1 : -1); moved = true; }
+      if (Math.abs(dx) > 30) {
+        this.player.moveLane(dx > 0 ? 1 : -1);
+        this.bridge?.hapticLight(); // اهتزاز خفيف عند تغيير المسار بالسحب
+        moved = true;
+      }
     }, { passive: true });
     el.addEventListener('touchend', () => { moved = false; });
     el.addEventListener('mousedown', () => this.audio.resume());
@@ -183,8 +191,8 @@ export class Game {
 
   onKey(e) {
     if (this.state !== 'playing') return;
-    if (e.key === 'ArrowLeft' || e.key === 'a') this.player.moveLane(-1);
-    else if (e.key === 'ArrowRight' || e.key === 'd') this.player.moveLane(1);
+    if (e.key === 'ArrowLeft' || e.key === 'a') { this.player.moveLane(-1); this.bridge?.hapticLight(); }
+    else if (e.key === 'ArrowRight' || e.key === 'd') { this.player.moveLane(1); this.bridge?.hapticLight(); }
     else if (e.key === 'Escape' || e.key === 'p') this.togglePause();
   }
 
@@ -203,6 +211,7 @@ export class Game {
       this.clearLevelObjects();
       this.hud.hide();
       this.audio.stopMusic();
+      this.bridge?.onGameplayEnd(); // السماح بإطفاء الشاشة + فك قفل الاتجاه
       this.screens.show('menu');
       this.screens.refresh();
     }
@@ -274,6 +283,9 @@ export class Game {
     this.hud.show();
     this.screens.show(null);
     
+    // تفعيل وضع الهاتف أثناء اللعب: منع إطفاء الشاشة + قفل الاتجاه أفقيًا + إخفاء شريط الحالة
+    this.bridge?.onGameplayStart();
+
     // بدء الموسيقى
     this.audio.startMusic(config.worldData.id);
     this.spawnRound();
@@ -339,6 +351,7 @@ export class Game {
     this.hud.setPowerups(this.save.powerups);
     writeSave(this.save);
     this.audio.powerup();
+    this.bridge?.hapticMedium();
   }
 
   applyRemoveToGate() {
@@ -367,10 +380,12 @@ export class Game {
     if (this.state === 'playing') {
       this.state = 'paused';
       this.audio.stopMusic();
+      this.bridge?.onGameplayPaused(); // السماح بإطفاء الشاشة أثناء الإيقاف
       this.screens.show('pause');
     } else if (this.state === 'paused') {
       this.state = 'playing';
       this.screens.show(null);
+      this.bridge?.onGameplayResumed(); // منع إطفاء الشاشة مرة أخرى
       this.audio.startMusic(this.levelConfig.worldData.id);
     }
   }
@@ -437,6 +452,7 @@ export class Game {
       this.hud.flashCorrect();
       this.hud.showCombo(this.combo);
       this.audio.correct();
+      this.bridge?.hapticSuccess(); // اهتزاز نجاح
       this.particles.burst(this.player.group.position.clone().add(new THREE.Vector3(0, 1.5, -1)), 0xffd700, 25);
 
       if (!this.isEndless && this.correctCount >= this.targetCount) {
@@ -451,10 +467,12 @@ export class Game {
       this.hud.hideCombo();
       this.hud.flashWrong();
       this.audio.wrong();
+      this.bridge?.hapticError(); // اهتزاز خطأ
       this.particles.burst(this.player.group.position.clone().add(new THREE.Vector3(0, 1, -1)), 0xff4757, 15);
       
       if (hitObstacle) {
           this.audio.bump(); // صوت اصطدام
+          this.bridge?.hapticHeavy(); // اهتزاز قوي عند الاصطدام
       }
 
       if (this.powerups.shieldActive) {
@@ -479,6 +497,7 @@ export class Game {
     this.state = 'levelcomplete';
     this.player.update(0, 0, false);
     this.audio.stopMusic();
+    this.bridge?.onGameplayEnd(); // إنهاء وضع الهاتف أثناء اللعب
     const nextLevelNum = this.levelIndex + 2;
     if (nextLevelNum <= LevelConfigs.length) this.save.unlockedLevel = Math.max(this.save.unlockedLevel, nextLevelNum);
     this.save.bestLevel = Math.max(this.save.bestLevel, nextLevelNum);
@@ -491,6 +510,7 @@ export class Game {
 
   gameOver() {
     this.state = 'gameover';
+    this.bridge?.onGameplayEnd(); // إنهاء وضع الهاتف أثناء اللعب
     this.save.stats.bestCombo = Math.max(this.save.stats.bestCombo, this.bestCombo);
     writeSave(this.save);
     this.audio.stopMusic();
