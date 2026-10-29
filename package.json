@@ -1,8 +1,8 @@
 {
   "name": "math-runner-3d",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "type": "module",
-  "description": "سباق الرياضيات ثلاثي الأبعاد — لعبة تعليمية تفاعلية",
+  "description": "سباق الرياضيات ثلاثي الأبعاد — لعبة تعليمية تفاعلية (تطبيق هاتف متكامل)",
   "author": "math-runner",
   "license": "MIT",
   "scripts": {
@@ -17,7 +17,13 @@
   "dependencies": {
     "three": "^0.160.0",
     "@capacitor/android": "^7.0.0",
-    "@capacitor/core": "^7.0.0"
+    "@capacitor/app": "^7.0.0",
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/haptics": "^7.0.0",
+    "@capacitor/keep-awake": "^7.0.0",
+    "@capacitor/network": "^7.0.0",
+    "@capacitor/screen-orientation": "^7.0.0",
+    "@capacitor/status-bar": "^7.0.0"
   },
   "devDependencies": {
     "vite": "^5.0.0",
