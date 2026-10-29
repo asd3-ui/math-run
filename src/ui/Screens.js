@@ -20,6 +20,9 @@ export class Screens {
     this.levelsGrid = document.getElementById('levels-grid');
     this.charactersGrid = document.getElementById('characters-grid');
 
+    this.current = 'menu';        // تتبع الشاشة الظاهرة لخدمة زر الرجوع في الهاتف
+    this._prevScreen = 'menu';
+
     this.bindGlobal();
     this.refresh();
   }
@@ -46,6 +49,8 @@ export class Screens {
     [this.menu, this.levelSelect, this.shop, this.characters, this.pause, this.gameover, this.levelComplete]
       .forEach(el => el?.classList.add('hidden'));
 
+    this.current = name; // تتبع الشاشة الحالية (null أثناء اللعب)
+
     if (!name) return;
     if (name === 'menu') { this.menu.classList.remove('hidden'); this.refreshCoins(); }
     else if (name === 'levels') { this.levelSelect.classList.remove('hidden'); this.refreshLevels(); }
@@ -54,6 +59,24 @@ export class Screens {
     else if (name === 'pause') this.pause.classList.remove('hidden');
     else if (name === 'gameover') this.gameover.classList.remove('hidden');
     else if (name === 'levelcomplete') this.levelComplete.classList.remove('hidden');
+  }
+
+  // ============ نافذة تأكيد الخروج (زر الرجوع في القائمة) ============
+  showExitConfirm(onConfirm) {
+    this._prevScreen = this.current;
+    this.current = 'exit-confirm';
+    const dialog = document.getElementById('exit-dialog');
+    dialog.classList.remove('hidden');
+    const yes = document.getElementById('btn-exit-yes');
+    const no = document.getElementById('btn-exit-no');
+    yes.onclick = () => { this.hideExitConfirm(); onConfirm?.(); };
+    no.onclick = () => this.hideExitConfirm();
+    this.onExitConfirm?.();
+  }
+
+  hideExitConfirm() {
+    document.getElementById('exit-dialog').classList.add('hidden');
+    if (this.current === 'exit-confirm') this.current = this._prevScreen ?? 'menu';
   }
 
   refresh() {
