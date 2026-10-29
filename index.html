@@ -24,6 +24,9 @@
 <body>
   <div id="canvas-container"></div>
 
+  <!-- ============ شريط حالة الشبكة ============ -->
+  <div id="offline-banner" class="hidden">📡 لا يوجد اتصال بالإنترنت — تستمر اللعبة دون اتصال</div>
+
   <!-- ============ HUD ============ -->
   <div id="hud" class="hidden">
     <div class="hud-top">
@@ -35,10 +38,6 @@
       <div class="stat"><span id="hearts">❤️❤️❤️</span></div>
       <div class="stat">⚡ <span id="speed">0</span></div>
       <div class="stat">🎯 <span id="progress">0/0</span></div>
-    </div>
-    <div class="touch-controls" aria-label="تحكمات الهاتف">
-      <button class="mobile-control left" data-move="-1" type="button" aria-label="تحرك إلى اليسار">◀</button>
-      <button class="mobile-control right" data-move="1" type="button" aria-label="تحرك إلى اليمين">▶</button>
     </div>
     <div class="powerups">
       <button class="powerup-btn" data-type="freeze" title="تجميد">❄️<span class="count">0</span></button>
@@ -121,6 +120,7 @@
     <div class="panel">
       <h2>⏸ إيقاف مؤقت</h2>
       <button id="btn-resume" class="btn primary">استئناف</button>
+      <button id="btn-mute" class="btn">🔊 الصوت: مفتوح</button>
       <button class="btn back" data-back="menu">القائمة الرئيسية</button>
     </div>
   </div>
@@ -146,6 +146,16 @@
       <div class="result-row"><span>الإجابات الصحيحة</span><strong id="lc-correct">0</strong></div>
       <button id="btn-next" class="btn primary">▶ المرحلة التالية</button>
       <button class="btn back" data-back="menu">القائمة</button>
+    </div>
+  </div>
+
+  <!-- ============ نافذة تأكيد الخروج (زر الرجوع في الهاتف) ============ -->
+  <div id="exit-dialog" class="screen dialog-screen hidden">
+    <div class="panel">
+      <h2>🚪 الخروج من اللعبة؟</h2>
+      <p class="subtitle">هل أنت متأكد أنك تريد الخروج؟</p>
+      <button id="btn-exit-yes" class="btn primary">نعم، خروج</button>
+      <button id="btn-exit-no" class="btn back">إلغاء — متابعة اللعب</button>
     </div>
   </div>
 
